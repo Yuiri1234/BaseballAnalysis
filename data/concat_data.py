@@ -1,7 +1,9 @@
-import os
-import pandas as pd
 import argparse
+import os
 from glob import glob
+
+import pandas as pd
+
 
 def main(args):
     folder = f"{args.team}"
@@ -32,7 +34,7 @@ def main(args):
     pitching_df_all.to_csv(f"{folder}/pitching.csv", index=False)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--team", type=str, default="ryunen_busters")
     args = parser.parse_args()
