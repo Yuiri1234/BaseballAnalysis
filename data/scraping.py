@@ -93,7 +93,6 @@ def get_stats_df(df, info_df):
 
 
 def main(args):
-
     score_df_list = []
     batting_df_list = []
     pitching_df_list = []
@@ -138,7 +137,6 @@ def main(args):
                 except FileNotFoundError as e:
                     print(f"game_url: {game_url}")
                     print(f"error: {e}")
-
             else:
                 time.sleep(3)
                 response = requests.get(game_url)
@@ -163,7 +161,6 @@ def main(args):
                 except IndexError as e:
                     print(f"game_url: {game_url}")
                     print(f"error: {e}")
-
         page += 1
 
     score_df_all = pd.concat(score_df_list, axis=0, ignore_index=True)
