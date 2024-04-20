@@ -479,9 +479,12 @@ def display_player_data(
     )
     st.dataframe(filtered_batting_result)
 
-    batting_result = batting_result.style.background_gradient(cmap=cm, axis=0)
-    batting_result = batting_result.format(batting_format)
-    st.dataframe(batting_result)
+    if batting_result.shape[0] == 1:
+        st.write("#### この選手は打者として出場していません")
+    else:
+        batting_result = batting_result.style.background_gradient(cmap=cm, axis=0)
+        batting_result = batting_result.format(batting_format)
+        st.dataframe(batting_result)
 
     st.write("### 投手成績")
     pitching_df = pitching_df[pitching_df["選手名"] == player_name]
@@ -538,6 +541,9 @@ def display_player_data(
     )
     st.dataframe(filtered_pitching_result)
 
-    pitching_result = pitching_result.style.background_gradient(cmap=cm, axis=0)
-    pitching_result = pitching_result.format(pitching_format)
-    st.write(pitching_result)
+    if pitching_result.shape[0] == 1:
+        st.write("#### この選手は投手として登板していません")
+    else:
+        pitching_result = pitching_result.style.background_gradient(cmap=cm, axis=0)
+        pitching_result = pitching_result.format(pitching_format)
+        st.write(pitching_result)
