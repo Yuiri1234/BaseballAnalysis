@@ -1,25 +1,46 @@
-import os
 import pandas as pd
-
 import streamlit as st
+from display import (
+    display_batting_data,
+    display_pitching_data,
+    display_player_data,
+    display_score_data,
+)
+from info import team_dict
+
 
 def main():
     team = "ryunen_busters"
-    
-    st.title(f"Baseball Data Analysis App ({team})")
-    st.sidebar.title("Menu")
+
     score_df = pd.read_csv(f"data/{team}/score.csv")
     batting_df = pd.read_csv(f"data/{team}/batting.csv")
     pitching_df = pd.read_csv(f"data/{team}/pitching.csv")
 
-    st.write("## Score Data")
-    st.write(score_df)
+    st.title(f"{team_dict[team]} 分析アプリ")
 
-    st.write("## Batting Data")
-    st.write(batting_df)
+    st.sidebar.title("メニュー")
+    selected_type = st.sidebar.radio("表示するデータ", ["スコア", "打撃成績", "投手成績", "個人成績"])
 
-    st.write("## Pitching Data")
-    st.write(pitching_df)
+    if selected_type == "スコア":
+        display_score_data(score_df, team)
+    elif selected_type == "打撃成績":
+        display_batting_data(batting_df)
+    elif selected_type == "投手成績":
+        display_pitching_data(pitching_df)
+    elif selected_type == "個人成績":
+        players = batting_df[["背番号", "選手名"]].drop_duplicates()
+        players = players[players["背番号"].str.isdigit()]
+        players["背番号"] = players["背番号"].astype(int)
+        players = players.sort_values("背番号")
+        players["表示名"] = players["背番号"].astype(str) + " " + players["選手名"]
+        selected_player = st.sidebar.selectbox(
+            "選手を選択してください",
+            players["表示名"],
+        )
+        player_number = int(selected_player.split()[0])
+        player_name = selected_player.split()[1]
+        display_player_data(batting_df, pitching_df, player_number, player_name)
+
 
 if __name__ == "__main__":
     main()
