@@ -151,9 +151,9 @@ def display_score_data(df, team):
     st.write(
         _display_df[
             [
+                "試合種別",
                 "試合日",
                 "曜日",
-                "時間",
                 "先攻",
                 "後攻",
                 "得点",
