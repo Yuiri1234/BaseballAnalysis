@@ -10,7 +10,7 @@ from calculate import (
     calc_points_losts,
     win_or_lose,
 )
-from info import column_name, score_format, team_dict
+from info import batting_format, column_name, pitching_format, score_format, team_dict
 
 cm = sns.light_palette("seagreen", as_cmap=True)
 
@@ -127,7 +127,7 @@ def calc_pitching_data(_pitching_df):
         win_rate = None
     try:
         sum_inning = _pitching_df["投球回(フル)"].sum() + _pitching_df["投球回(1/3)"].sum() / 3
-        diffence_rate = (_pitching_df["自責点"].sum() / sum_inning * 7,)  # 7回で1試合
+        diffence_rate = _pitching_df["自責点"].sum() / sum_inning * 7  # 7回で1試合
     except ZeroDivisionError:
         sum_inning = 0
         diffence_rate = None
@@ -430,21 +430,24 @@ def display_player_data(
         used_key_num=f"{used_key_num}_0",
     )
 
-    batting_result = [calc_batting_data(_batting_df),] + [
+    filtered_batting_result = [calc_batting_data(_batting_df)]
+    filtered_batting_result = pd.DataFrame(filtered_batting_result)
+    filtered_batting_result.index = ["フィルタ後"]
+
+    batting_result = [calc_batting_data(batting_df)] + [
         calc_batting_data(
             display_filtered_df(batting_df, team, selected_option4=str(year))
         )
         for year in unique_years
     ]
     batting_result = pd.DataFrame(batting_result)
-    batting_result.index = ["フィルタ後"] + [f"{year}年" for year in unique_years]
+    batting_result.index = ["すべて"] + [f"{year}年" for year in unique_years]
 
     # 表示
     st.write("### 打撃成績")
-
     _batting_df = _batting_df.rename(columns=column_name)
     _batting_df["試合日"] = _batting_df["試合日"].dt.strftime("%Y/%m/%d")
-    st.write(
+    st.dataframe(
         _batting_df[
             [
                 "背番号",
@@ -474,10 +477,13 @@ def display_player_data(
             ]
         ]
     )
-    st.write(batting_result)
+    st.dataframe(filtered_batting_result)
+
+    batting_result = batting_result.style.background_gradient(cmap=cm, axis=0)
+    batting_result = batting_result.format(batting_format)
+    st.dataframe(batting_result)
 
     st.write("### 投手成績")
-
     pitching_df = pitching_df[pitching_df["選手名"] == player_name]
     unique_years = pd.to_datetime(pitching_df["game_date"]).dt.year.unique()
     _pitching_df = display_filtered_df(
@@ -490,19 +496,23 @@ def display_player_data(
         used_key_num=f"{used_key_num}_1",
     )
 
-    pitching_result = [calc_pitching_data(_pitching_df),] + [
+    filtered_pitching_result = [calc_pitching_data(_pitching_df)]
+    filtered_pitching_result = pd.DataFrame(filtered_pitching_result)
+    filtered_pitching_result.index = ["フィルタ後"]
+
+    pitching_result = [calc_pitching_data(pitching_df),] + [
         calc_pitching_data(
             display_filtered_df(pitching_df, team, selected_option4=str(year))
         )
         for year in unique_years
     ]
     pitching_result = pd.DataFrame(pitching_result)
-    pitching_result.index = ["フィルタ後"] + [f"{year}年" for year in unique_years]
+    pitching_result.index = ["すべて"] + [f"{year}年" for year in unique_years]
 
     # 表示
     _pitching_df = _pitching_df.rename(columns=column_name)
     _pitching_df["試合日"] = _pitching_df["試合日"].dt.strftime("%Y/%m/%d")
-    st.write(
+    st.dataframe(
         _pitching_df[
             [
                 "背番号",
@@ -526,4 +536,8 @@ def display_player_data(
             ]
         ]
     )
+    st.dataframe(filtered_pitching_result)
+
+    pitching_result = pitching_result.style.background_gradient(cmap=cm, axis=0)
+    pitching_result = pitching_result.format(pitching_format)
     st.write(pitching_result)
