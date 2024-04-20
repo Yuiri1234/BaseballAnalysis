@@ -47,6 +47,11 @@ def calc_win_rate(df):
     return win / (win + lose)
 
 
+def split_inning(inning):
+    inning = inning.split("回")
+    return pd.Series([int(inning[0]), int(inning[1].split("/")[0])])
+
+
 def display_filter_options(df):
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -65,8 +70,29 @@ def display_filter_options(df):
     return selected_option1, selected_option2, selected_option3, selected_option4
 
 
+def display_filter_calendar(df, key1="selected_date1", key2="selected_date2"):
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_date1 = st.date_input(
+            "期間 (前)", datetime.datetime.now() - datetime.timedelta(days=30), key=key1
+        )
+    with col2:
+        selected_date2 = st.date_input("期間 (後)", datetime.datetime.now(), key=key2)
+
+    return df[
+        (df["game_date"].dt.date >= selected_date1)
+        & (df["game_date"].dt.date <= selected_date2)
+    ]
+
+
 def display_filtered_df(
-    df, team, selected_option1, selected_option2, selected_option3, selected_option4
+    df,
+    team,
+    selected_option1,
+    selected_option2,
+    selected_option3,
+    selected_option4,
+    used_key_num,
 ):
     if selected_option1 == "すべて":
         display_df = df
@@ -94,22 +120,16 @@ def display_filtered_df(
     if selected_option4 == "すべて":
         display_df = display_df
     elif selected_option4 == "その他":
-        col1, col2 = st.columns(2)
-        with col1:
-            selected_date1 = st.date_input(
-                "期間 (前)", datetime.datetime.now() - datetime.timedelta(days=30)
-            )
-            display_df = display_df[display_df["game_date"].dt.date >= selected_date1]
-        with col2:
-            selected_date2 = st.date_input("期間 (後)", datetime.datetime.now())
-            display_df = display_df[display_df["game_date"].dt.date <= selected_date2]
+        key1 = f"selected_date_{used_key_num}_1"
+        key2 = f"selected_date_{used_key_num}_2"
+        display_df = display_filter_calendar(display_df, key1, key2)
     else:
         year = int(selected_option4.replace("年", ""))
         display_df = display_df[display_df["game_date"].dt.year == year]
     return display_df
 
 
-def display_score_data(df, team):
+def display_score_data(df, team, used_key_num):
     st.write("## 試合結果")
 
     # フィルタリング
@@ -150,6 +170,7 @@ def display_score_data(df, team):
         selected_option2,
         selected_option3,
         selected_option4,
+        used_key_num,
     )
 
     results = [
@@ -200,7 +221,7 @@ def display_score_data(df, team):
     st.write(inning_score)
 
 
-def display_batting_data(score_df, batting_df):
+def display_batting_data(score_df, batting_df, used_key_num):
     # 計算
 
     # 表示
@@ -210,7 +231,7 @@ def display_batting_data(score_df, batting_df):
     st.write(batting_df)
 
 
-def display_pitching_data(score_df, pitching_df):
+def display_pitching_data(score_df, pitching_df, used_key_num):
     # 計算
 
     # 表示
@@ -221,7 +242,7 @@ def display_pitching_data(score_df, pitching_df):
 
 
 def display_player_data(
-    score_df, batting_df, pitching_df, team, player_number, player_name
+    score_df, batting_df, pitching_df, team, player_number, player_name, used_key_num
 ):
     st.write(f"## {player_name} ({player_number})")
 
@@ -256,22 +277,31 @@ def display_player_data(
         selected_option2,
         selected_option3,
         selected_option4,
+        used_key_num=f"{used_key_num}_0",
     )
     batting_df = batting_df[batting_df["選手名"] == player_name]
-    on_base_percentage = (batting_df["安打"].sum() + batting_df["四死球"].sum()) / (
-        batting_df["打数"].sum() + batting_df["四死球"].sum() + batting_df["犠飛"].sum()
-    )
     total_bases = (
         batting_df["安打"].sum()
         + batting_df["二塁打"].sum()
         + batting_df["三塁打"].sum() * 2
         + batting_df["本"].sum() * 3
     )
-    slugging_percentage = total_bases / batting_df["打数"].sum()
+
+    try:
+        on_base_percentage = (batting_df["安打"].sum() + batting_df["四死球"].sum()) / (
+            batting_df["打数"].sum() + batting_df["四死球"].sum() + batting_df["犠飛"].sum()
+        )
+        slugging_percentage = total_bases / batting_df["打数"].sum()
+        average = batting_df["安打"].sum() / batting_df["打数"].sum()
+    except ZeroDivisionError:
+        on_base_percentage = None
+        slugging_percentage = None
+        average = None
+
     batting_result = [
         {
             "試合数": batting_df.shape[0],
-            "打率": batting_df["安打"].sum() / batting_df["打数"].sum(),
+            "打率": average,
             "打席": batting_df["打席"].sum(),
             "打数": batting_df["打数"].sum(),
             "安打": batting_df["安打"].sum(),
@@ -296,16 +326,6 @@ def display_player_data(
     ]
     batting_result = pd.DataFrame(batting_result)
     batting_result.index = [f"{player_name}"]
-
-    pitching_df = display_filtered_df(
-        pitching_df,
-        team,
-        selected_option1,
-        selected_option2,
-        selected_option3,
-        selected_option4,
-    )
-    pitching_df = pitching_df[pitching_df["選手名"] == player_name]
 
     # 表示
     st.write("### 打撃成績")
@@ -346,6 +366,62 @@ def display_player_data(
 
     st.write("### 投手成績")
 
+    pitching_df = display_filtered_df(
+        pitching_df,
+        team,
+        selected_option1,
+        selected_option2,
+        selected_option3,
+        selected_option4,
+        used_key_num=f"{used_key_num}_1",
+    )
+    pitching_df = pitching_df[pitching_df["選手名"] == player_name]
+    try:
+        pitching_df[["投球回(フル)", "投球回(1/3)"]] = pitching_df["投球回"].apply(split_inning)
+    except Exception:
+        pitching_df[["投球回(フル)", "投球回(1/3)"]] = pd.DataFrame(
+            [[0, 0]], index=pitching_df.index
+        )
+    try:
+        win_rate = pitching_df[pitching_df["勝敗"] == "勝"].shape[0] / (
+            pitching_df[pitching_df["勝敗"] == "勝"].shape[0]
+            + pitching_df[pitching_df["勝敗"] == "負"].shape[0]
+        )
+        sum_inning = pitching_df["投球回(フル)"].sum() + pitching_df["投球回(1/3)"].sum() / 3
+        diffence_rate = (pitching_df["自責点"].sum() / sum_inning * 7,)  # 7回で1試合
+    except ZeroDivisionError:
+        win_rate = None
+        sum_inning = 0
+        diffence_rate = None
+    sum_inning_str = (
+        f"{pitching_df['投球回(フル)'].sum() + pitching_df['投球回(1/3)'].sum() // 3}回",
+        f"{pitching_df['投球回(1/3)'].sum() % 3}/3",
+    )
+
+    pitching_result = [
+        {
+            "試合数": pitching_df.shape[0],
+            "勝": pitching_df[pitching_df["勝敗"] == "勝"].shape[0],
+            "負": pitching_df[pitching_df["勝敗"] == "負"].shape[0],
+            "勝率": win_rate,
+            "防御率": diffence_rate,
+            "投球回": sum_inning_str,
+            "失点": pitching_df["失点"].sum(),
+            "自責点": pitching_df["自責点"].sum(),
+            "完投": pitching_df[pitching_df["完投"] == "◯"].shape[0],
+            "完封": pitching_df[pitching_df["完封"] == "◯"].shape[0],
+            "被安打": pitching_df["被安打"].sum(),
+            "被本塁打": pitching_df["被本塁打"].sum(),
+            "奪三振": pitching_df["奪三振"].sum(),
+            "与四死球": pitching_df["与四死球"].sum(),
+            "ボーク": pitching_df["ボーク"].sum(),
+            "暴投": pitching_df["暴投"].sum(),
+        }
+    ]
+    pitching_result = pd.DataFrame(pitching_result)
+    pitching_result.index = [f"{player_name}"]
+
+    # 表示
     pitching_df = pitching_df.rename(columns=column_name)
     pitching_df["試合日"] = pitching_df["試合日"].dt.strftime("%Y/%m/%d")
     st.write(
@@ -372,3 +448,4 @@ def display_player_data(
             ]
         ]
     )
+    st.write(pitching_result)
