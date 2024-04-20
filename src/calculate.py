@@ -31,7 +31,7 @@ def calc_points_losts(row, team):
 
 def calc_inning_points(row, team):
     tmp_row = row.copy()
-    if row["team_name_top"] == team:
+    if tmp_row["team_name_top"] == team:
         for i in range(1, 10):
             tmp_row.rename({f"{i}_top": f"{i}_points"}, inplace=True)
     else:
