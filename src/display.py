@@ -146,9 +146,10 @@ def display_score_data(df, team):
     inning_score.index = ["合計得点", "平均得点", "失点", "平均失点"]
 
     # 表示
-    display_df = display_df.rename(columns=column_name)
+    _display_df = display_df.rename(columns=column_name)
+    _display_df["試合日"] = _display_df["試合日"].dt.strftime("%Y/%m/%d")
     st.write(
-        display_df[
+        _display_df[
             [
                 "試合日",
                 "曜日",
@@ -162,7 +163,6 @@ def display_score_data(df, team):
             ]
         ]
     )
-
     st.write(results)
     st.write(inning_score)
 
