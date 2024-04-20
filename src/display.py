@@ -41,9 +41,7 @@ def calc_inning_data(df, type="points", calc="sum"):
         }
 
 
-def display_score_data(df, team):
-    st.write("## 試合結果")
-
+def display_filter_options(df):
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         options = ["すべて", "公式戦", "練習試合"]
@@ -56,37 +54,20 @@ def display_score_data(df, team):
         selected_option3 = st.selectbox("結果", options, index=0)
     with col4:
         unique_years = pd.to_datetime(df["game_date"]).dt.year.unique()
-        df["game_date"] = pd.to_datetime(df["game_date"])
         options = ["すべて"] + [f"{year}年" for year in unique_years] + ["その他"]
         selected_option4 = st.selectbox("年", options, index=0)
+    return selected_option1, selected_option2, selected_option3, selected_option4
 
-    score_df = df.copy()
-    score_df[["points", "losts"]] = score_df.apply(
-        lambda row: calc_points_losts(row, team_dict[team]),
-        axis=1,
-        result_type="expand",
-    )
-    score_df["points_diff"] = score_df.apply(
-        lambda row: calc_points_diff(row, team_dict[team]), axis=1
-    )
-    score_df["result"] = score_df.apply(
-        lambda row: win_or_lose(row, team_dict[team]), axis=1
-    )
-    score_df[[f"{i}_points" for i in range(1, 10)]] = score_df.apply(
-        lambda row: calc_inning_points(row, team_dict[team]),
-        axis=1,
-    )
-    score_df[[f"{i}_losts" for i in range(1, 10)]] = score_df.apply(
-        lambda row: calc_inning_losts(row, team_dict[team]),
-        axis=1,
-    )
 
+def display_filtered_df(
+    df, team, selected_option1, selected_option2, selected_option3, selected_option4
+):
     if selected_option1 == "すべて":
-        display_df = score_df
+        display_df = df
     elif selected_option1 == "公式戦":
-        display_df = score_df[score_df["game_type"] == "公式戦"]
+        display_df = df[df["game_type"] == "公式戦"]
     elif selected_option1 == "練習試合":
-        display_df = score_df[score_df["game_type"] == "練習試合"]
+        display_df = df[df["game_type"] == "練習試合"]
 
     if selected_option2 == "すべて":
         display_df = display_df
@@ -119,6 +100,51 @@ def display_score_data(df, team):
     else:
         year = int(selected_option4.replace("年", ""))
         display_df = display_df[display_df["game_date"].dt.year == year]
+    return display_df
+
+
+def display_score_data(df, team):
+    st.write("## 試合結果")
+
+    # フィルタリング
+    (
+        selected_option1,
+        selected_option2,
+        selected_option3,
+        selected_option4,
+    ) = display_filter_options(df)
+
+    # 計算
+    score_df = df.copy()
+    score_df["game_date"] = pd.to_datetime(score_df["game_date"])
+    score_df[["points", "losts"]] = score_df.apply(
+        lambda row: calc_points_losts(row, team_dict[team]),
+        axis=1,
+        result_type="expand",
+    )
+    score_df["points_diff"] = score_df.apply(
+        lambda row: calc_points_diff(row, team_dict[team]), axis=1
+    )
+    score_df["result"] = score_df.apply(
+        lambda row: win_or_lose(row, team_dict[team]), axis=1
+    )
+    score_df[[f"{i}_points" for i in range(1, 10)]] = score_df.apply(
+        lambda row: calc_inning_points(row, team_dict[team]),
+        axis=1,
+    )
+    score_df[[f"{i}_losts" for i in range(1, 10)]] = score_df.apply(
+        lambda row: calc_inning_losts(row, team_dict[team]),
+        axis=1,
+    )
+
+    display_df = display_filtered_df(
+        score_df,
+        team,
+        selected_option1,
+        selected_option2,
+        selected_option3,
+        selected_option4,
+    )
 
     results = [
         {
@@ -167,21 +193,135 @@ def display_score_data(df, team):
     st.write(inning_score)
 
 
-def display_batting_data(df):
+def display_batting_data(score_df, batting_df):
+    # 計算
+
+    # 表示
+    score_df = score_df.rename(columns=column_name)
+    batting_df = batting_df.rename(columns=column_name)
     st.write("## 打撃成績")
-    st.write(df)
+    st.write(batting_df)
 
 
-def display_pitching_data(df):
+def display_pitching_data(score_df, pitching_df):
+    # 計算
+
+    # 表示
+    score_df = score_df.rename(columns=column_name)
+    pitching_df = pitching_df.rename(columns=column_name)
     st.write("## 投手成績")
-    st.write(df)
+    st.write(pitching_df)
 
 
-def display_player_data(batting_df, pitching_df, player_number, player_name):
+def display_player_data(
+    score_df, batting_df, pitching_df, team, player_number, player_name
+):
+    # フィルタリング
+    (
+        selected_option1,
+        selected_option2,
+        selected_option3,
+        selected_option4,
+    ) = display_filter_options(batting_df)
+
+    # 計算
+    score_df["game_date"] = pd.to_datetime(score_df["game_date"])
+    batting_df["game_date"] = pd.to_datetime(batting_df["game_date"])
+    pitching_df["game_date"] = pd.to_datetime(pitching_df["game_date"])
+
+    score_df["result"] = score_df.apply(
+        lambda row: win_or_lose(row, team_dict[team]), axis=1
+    )
+
+    batting_df = pd.merge(
+        score_df, batting_df, on=["game_type", "game_date", "game_day", "game_time"]
+    )
+    pitching_df = pd.merge(
+        score_df, pitching_df, on=["game_type", "game_date", "game_day", "game_time"]
+    )
+
+    # 表示
     st.write(f"## {player_name} ({player_number})")
     st.write("### 打撃成績")
+
+    batting_df = display_filtered_df(
+        batting_df,
+        team,
+        selected_option1,
+        selected_option2,
+        selected_option3,
+        selected_option4,
+    )
     batting_df = batting_df[batting_df["選手名"] == player_name]
-    st.write(batting_df)
+
+    batting_df = batting_df.rename(columns=column_name)
+    batting_df["試合日"] = batting_df["試合日"].dt.strftime("%Y/%m/%d")
+    st.write(
+        batting_df[
+            [
+                "背番号",
+                "選手名",
+                "試合種別",
+                "試合日",
+                "結果",
+                "出場",
+                "打順",
+                "守備",
+                "打席",
+                "打数",
+                "安打",
+                "本",
+                "打点",
+                "得点",
+                "盗塁",
+                "二塁打",
+                "三塁打",
+                "三振",
+                "四死球",
+                "犠打",
+                "犠飛",
+                "併殺打",
+                "敵失",
+                "失策",
+            ]
+        ]
+    )
+
     st.write("### 投手成績")
+
+    pitching_df = display_filtered_df(
+        pitching_df,
+        team,
+        selected_option1,
+        selected_option2,
+        selected_option3,
+        selected_option4,
+    )
     pitching_df = pitching_df[pitching_df["選手名"] == player_name]
-    st.write(pitching_df)
+
+    pitching_df = pitching_df.rename(columns=column_name)
+    pitching_df["試合日"] = pitching_df["試合日"].dt.strftime("%Y/%m/%d")
+    st.write(
+        pitching_df[
+            [
+                "背番号",
+                "選手名",
+                "試合種別",
+                "試合日",
+                "結果",
+                "勝敗",
+                "投球回",
+                "失点",
+                "自責点",
+                "完投",
+                "完封",
+                "被安打",
+                "被本塁打",
+                "奪三振",
+                "与四死球",
+                "ボーク",
+                "暴投",
+                "登板順",
+            ]
+        ]
+    )

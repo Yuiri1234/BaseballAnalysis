@@ -6,7 +6,7 @@ from display import (
     display_player_data,
     display_score_data,
 )
-from info import team_dict
+from info import team_dict, teams_url
 
 
 def main():
@@ -16,7 +16,7 @@ def main():
     batting_df = pd.read_csv(f"data/{team}/batting.csv")
     pitching_df = pd.read_csv(f"data/{team}/pitching.csv")
 
-    st.title(f"{team_dict[team]} 分析アプリ")
+    st.title(f"[{team_dict[team]}]({teams_url + team}) 分析アプリ")
 
     st.sidebar.title("メニュー")
     selected_type = st.sidebar.radio("表示するデータ", ["スコア", "打撃成績", "投手成績", "個人成績"])
@@ -24,9 +24,9 @@ def main():
     if selected_type == "スコア":
         display_score_data(score_df, team)
     elif selected_type == "打撃成績":
-        display_batting_data(batting_df)
+        display_batting_data(score_df, batting_df)
     elif selected_type == "投手成績":
-        display_pitching_data(pitching_df)
+        display_pitching_data(score_df, pitching_df)
     elif selected_type == "個人成績":
         players = batting_df[["背番号", "選手名"]].drop_duplicates()
         players = players[players["背番号"].str.isdigit()]
@@ -39,7 +39,9 @@ def main():
         )
         player_number = int(selected_player.split()[0])
         player_name = selected_player.split()[1]
-        display_player_data(batting_df, pitching_df, player_number, player_name)
+        display_player_data(
+            score_df, batting_df, pitching_df, team, player_number, player_name
+        )
 
 
 if __name__ == "__main__":

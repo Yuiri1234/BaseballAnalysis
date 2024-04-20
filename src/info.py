@@ -1,3 +1,5 @@
+teams_url = "https://teams.one/teams/"
+
 team_dict = {
     "ryunen_busters": "留年バスターズ",
 }
