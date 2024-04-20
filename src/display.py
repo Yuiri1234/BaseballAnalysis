@@ -1,6 +1,7 @@
 import datetime
 
 import pandas as pd
+import seaborn as sns
 import streamlit as st
 from calculate import (
     calc_inning_losts,
@@ -9,10 +10,12 @@ from calculate import (
     calc_points_losts,
     win_or_lose,
 )
-from info import column_name, team_dict
+from info import column_name, score_format, team_dict
+
+cm = sns.light_palette("seagreen", as_cmap=True)
 
 
-def calc_inning_data(df, type="points", calc="sum"):
+def calc_inning_data(df, type="points", calc="mean"):
     if calc == "sum":
         return {
             "1回": df[f"1_{type}"].sum(),
@@ -24,7 +27,6 @@ def calc_inning_data(df, type="points", calc="sum"):
             "7回": df[f"7_{type}"].sum(),
             "8回": df[f"8_{type}"].sum(),
             "9回": df[f"9_{type}"].sum(),
-            "合計": df[f"{type}"].sum(),
         }
     elif calc == "mean":
         return {
@@ -37,7 +39,6 @@ def calc_inning_data(df, type="points", calc="sum"):
             "7回": df[f"7_{type}"].mean(),
             "8回": df[f"8_{type}"].mean(),
             "9回": df[f"9_{type}"].mean(),
-            "合計": df[f"{type}"].mean(),
         }
 
 
@@ -48,6 +49,21 @@ def calc_win_rate(df):
         return win / (win + lose)
     except ZeroDivisionError:
         return None
+
+
+def calc_score_data(_scene_df, team):
+    return {
+        "勝ち": _scene_df[_scene_df["result"] == "○"].shape[0],
+        "負け": _scene_df[_scene_df["result"] == "☓"].shape[0],
+        "引き分け": _scene_df[_scene_df["result"] == "△"].shape[0],
+        "勝率": calc_win_rate(_scene_df),
+        "合計得点": _scene_df["points"].sum(),
+        "合計失点": _scene_df["losts"].sum(),
+        "合計得失点差": _scene_df["points_diff"].sum(),
+        "1試合平均得点": _scene_df["points"].mean(),
+        "1試合平均失点": _scene_df["losts"].mean(),
+        "1試合平均得失点差": _scene_df["points_diff"].mean(),
+    }
 
 
 def calc_batting_data(_batting_df):
@@ -223,7 +239,7 @@ def display_filtered_df(
     return display_df
 
 
-def display_score_data(df, team, used_key_num):
+def display_score_data(score_df, team, used_key_num):
     st.write("## 試合結果")
 
     # フィルタリング
@@ -232,10 +248,9 @@ def display_score_data(df, team, used_key_num):
         selected_option2,
         selected_option3,
         selected_option4,
-    ) = display_filter_options(df)
+    ) = display_filter_options(score_df)
 
     # 計算
-    score_df = df.copy()
     score_df["game_date"] = pd.to_datetime(score_df["game_date"])
     score_df[["points", "losts"]] = score_df.apply(
         lambda row: calc_points_losts(row, team_dict[team]),
@@ -257,7 +272,7 @@ def display_score_data(df, team, used_key_num):
         axis=1,
     )
 
-    display_df = display_filtered_df(
+    _score_df = display_filtered_df(
         score_df,
         team,
         selected_option1,
@@ -266,38 +281,55 @@ def display_score_data(df, team, used_key_num):
         selected_option4,
         used_key_num,
     )
-
-    results = [
-        {
-            "勝ち": display_df[display_df["result"] == "○"].shape[0],
-            "負け": display_df[display_df["result"] == "☓"].shape[0],
-            "引き分け": display_df[display_df["result"] == "△"].shape[0],
-            "勝率": calc_win_rate(display_df),
-            "合計得点": display_df["points"].sum(),
-            "合計失点": display_df["losts"].sum(),
-            "合計得失点差": display_df["points_diff"].sum(),
-            "1試合平均得点": display_df["points"].mean(),
-            "1試合平均失点": display_df["losts"].mean(),
-            "1試合平均得失点差": display_df["points_diff"].mean(),
-        }
+    filtered_score_results = [
+        calc_score_data(_score_df, team),
     ]
-    results = pd.DataFrame(results)
-    results.index = [f"{team_dict[team]}"]
+    filtered_score_results = pd.DataFrame(filtered_score_results)
+    filtered_score_results.index = ["フィルタ後"]
 
-    inning_score = [
-        calc_inning_data(display_df, type="points", calc="sum"),
-        calc_inning_data(display_df, type="points", calc="mean"),
-        calc_inning_data(display_df, type="losts", calc="sum"),
-        calc_inning_data(display_df, type="losts", calc="mean"),
+    unique_years = pd.to_datetime(score_df["game_date"]).dt.year.unique()
+    score_results = [calc_score_data(display_filtered_df(score_df, team), team)] + [
+        calc_score_data(
+            display_filtered_df(score_df, team, selected_option4=str(year)), team
+        )
+        for year in unique_years
     ]
-    inning_score = pd.DataFrame(inning_score)
-    inning_score.index = ["合計得点", "平均得点", "失点", "平均失点"]
+    score_results = pd.DataFrame(score_results)
+    score_results.index = ["すべて"] + [f"{year}年" for year in unique_years]
+
+    filtered_inning_score = [
+        calc_inning_data(_score_df, type="points", calc="mean"),
+        calc_inning_data(_score_df, type="losts", calc="mean"),
+    ]
+    filtered_inning_score = pd.DataFrame(filtered_inning_score)
+    filtered_inning_score.index = ["平均得点", "平均失点"]
+
+    inning_point = [calc_inning_data(score_df, type="points")] + [
+        calc_inning_data(
+            display_filtered_df(score_df, team, selected_option4=str(year)),
+            type="points",
+        )
+        for year in unique_years
+    ]
+    inning_point = pd.DataFrame(inning_point)
+    inning_point.index = ["すべて(得点)"] + [f"{year}年(得点)" for year in unique_years]
+
+    inning_losts = [calc_inning_data(score_df, type="losts")] + [
+        calc_inning_data(
+            display_filtered_df(score_df, team, selected_option4=str(year)),
+            type="losts",
+        )
+        for year in unique_years
+    ]
+    inning_losts = pd.DataFrame(inning_losts)
+    inning_losts.index = ["すべて(失点)"] + [f"{year}年(失点)" for year in unique_years]
 
     # 表示
-    _display_df = display_df.rename(columns=column_name)
-    _display_df["試合日"] = _display_df["試合日"].dt.strftime("%Y/%m/%d")
-    st.write(
-        _display_df[
+    _score_df = _score_df.rename(columns=column_name)
+    _score_df["試合日"] = _score_df["試合日"].dt.strftime("%Y/%m/%d")
+    st.write("### チーム成績")
+    st.dataframe(
+        _score_df[
             [
                 "試合種別",
                 "試合日",
@@ -311,8 +343,30 @@ def display_score_data(df, team, used_key_num):
             ]
         ]
     )
-    st.write(results)
-    st.write(inning_score)
+    st.dataframe(filtered_score_results)
+
+    score_results = score_results.style.background_gradient(cmap=cm, axis=0)
+    score_results = score_results.format(score_format)
+    st.dataframe(score_results)
+
+    st.write("### イニング別成績")
+    st.write("#### フィルタ後")
+    filtered_inning_score = filtered_inning_score.style.background_gradient(
+        cmap=cm, axis=1
+    )
+    filtered_inning_score = filtered_inning_score.format(
+        {col: "{:.3f}" for col in filtered_inning_score.columns}
+    )
+    st.dataframe(filtered_inning_score)
+
+    st.write("#### 年度別")
+    inning_point = inning_point.style.background_gradient(cmap=cm, axis=1)
+    inning_point = inning_point.format({col: "{:.3f}" for col in inning_point.columns})
+    st.dataframe(inning_point)
+
+    inning_losts = inning_losts.style.background_gradient(cmap=cm, axis=1)
+    inning_losts = inning_losts.format({col: "{:.3f}" for col in inning_losts.columns})
+    st.dataframe(inning_losts)
 
 
 def display_batting_data(score_df, batting_df, used_key_num):
