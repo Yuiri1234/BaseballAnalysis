@@ -197,7 +197,7 @@ def display_filter_options(df):
             ["すべて"]
             + [f"{year}年" for year in unique_years]
             + [f"{month}月" for month in unique_months]
-            + ["直近5試合", "その他"]
+            + ["直近5試合", "直近10試合", "その他"]
         )
         selected_option4 = st.selectbox("期間", options, index=0)
     with col5:
@@ -269,6 +269,8 @@ def display_filtered_df(
         display_df = display_filter_calendar(display_df, key1, key2)
     elif selected_option4 == "直近5試合":
         display_df = display_df.sort_values("game_date", ascending=False).head(5)
+    elif selected_option4 == "直近10試合":
+        display_df = display_df.sort_values("game_date", ascending=False).head(10)
     else:
         selected_option4 = int(selected_option4.replace("年", "").replace("月", ""))
         if int(selected_option4) > 2000:
@@ -514,22 +516,21 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
         selected_option5,
     ) = display_filter_options(batting_df)
 
-    _batting_df = display_filtered_df(
-        batting_df,
-        team,
-        selected_option1,
-        selected_option2,
-        selected_option3,
-        selected_option4,
-        selected_option5,
-        used_key_num=f"{used_key_num}_0",
-    )
-
     # 表示
-    _batting_df = _batting_df.rename(columns=column_name)
     result_df = pd.DataFrame()
-    for player, group in _batting_df.groupby("選手名"):
-        player_df = pd.DataFrame([calc_batting_data(group)])
+    for player, group in batting_df.groupby("選手名"):
+        _group = display_filtered_df(
+            group,
+            team,
+            selected_option1,
+            selected_option2,
+            selected_option3,
+            selected_option4,
+            selected_option5,
+            used_key_num=f"{used_key_num}_0",
+        )
+        _group = _group.rename(columns=column_name)
+        player_df = pd.DataFrame([calc_batting_data(_group)])
         player_df.index = [player]
         try:
             player_df["背番号"] = int(player_df["背番号"].values[0])
@@ -576,22 +577,21 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
         selected_option5,
     ) = display_filter_options(pitching_df)
 
-    _pitching_df = display_filtered_df(
-        pitching_df,
-        team,
-        selected_option1,
-        selected_option2,
-        selected_option3,
-        selected_option4,
-        selected_option5,
-        used_key_num=f"{used_key_num}_0",
-    )
-
     # 表示
-    _pitching_df = _pitching_df.rename(columns=column_name)
     result_df = pd.DataFrame()
-    for player, group in _pitching_df.groupby("選手名"):
-        player_df = pd.DataFrame([calc_pitching_data(group)])
+    for player, group in pitching_df.groupby("選手名"):
+        _group = display_filtered_df(
+            group,
+            team,
+            selected_option1,
+            selected_option2,
+            selected_option3,
+            selected_option4,
+            selected_option5,
+            used_key_num=f"{used_key_num}_0",
+        )
+        _group = _group.rename(columns=column_name)
+        player_df = pd.DataFrame([calc_pitching_data(_group)])
         player_df.index = [player]
         try:
             player_df["背番号"] = int(player_df["背番号"].values[0])
