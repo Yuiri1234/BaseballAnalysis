@@ -481,8 +481,11 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
             result_df = pd.concat([result_df, player_df])
         except ValueError:
             pass
-    # ソート
-    result_df = result_df.sort_values("背番号")
+    try:
+        # ソート
+        result_df = result_df.sort_values("背番号")
+    except KeyError:
+        pass
 
     st.write("## 打撃成績")
     result_df = result_df.style.background_gradient(cmap=cm, axis=0)
@@ -540,8 +543,11 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
             result_df = pd.concat([result_df, player_df])
         except ValueError:
             pass
-    # ソート
-    result_df = result_df.sort_values("背番号")
+    try:
+        # ソート
+        result_df = result_df.sort_values("背番号")
+    except KeyError:
+        pass
 
     st.write("## 投手成績")
     result_df = result_df.style.background_gradient(cmap=cm, axis=0)
