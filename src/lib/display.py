@@ -603,61 +603,64 @@ def display_player_data(
         used_key_num=f"{used_key_num}_0",
     )
 
-    filtered_batting_result = [calc_batting_data(_batting_df)]
-    filtered_batting_result = pd.DataFrame(filtered_batting_result)
-    filtered_batting_result.index = ["フィルタ後"]
+    try:
+        filtered_batting_result = [calc_batting_data(_batting_df)]
+        filtered_batting_result = pd.DataFrame(filtered_batting_result)
+        filtered_batting_result.index = ["フィルタ後"]
 
-    batting_result = [calc_batting_data(batting_df)] + [
-        calc_batting_data(
-            display_filtered_df(batting_df, team, selected_option4=str(year))
+        batting_result = [calc_batting_data(batting_df)] + [
+            calc_batting_data(
+                display_filtered_df(batting_df, team, selected_option4=str(year))
+            )
+            for year in unique_years
+        ]
+        batting_result = pd.DataFrame(batting_result)
+        batting_result.index = ["すべて"] + [f"{year}年" for year in unique_years]
+
+        # 表示
+        st.write("### 打撃成績")
+        _batting_df = _batting_df.rename(columns=column_name)
+        _batting_df["試合日"] = _batting_df["試合日"].dt.strftime("%Y/%m/%d")
+
+        __batting_df = _batting_df[display_batting_columns]
+        gb = GridOptionsBuilder.from_dataframe(__batting_df)
+        gb.configure_default_column(minWidth=50, **{"maxWidth": 90})
+        gb.configure_column(
+            "詳細",
+            header_name="詳細",
+            cellRenderer=JsCode(
+                """
+                class UrlCellRenderer {
+                    init(params) {
+                        this.eGui = document.createElement('a');
+                        this.eGui.innerText = "詳細";
+                        this.eGui.setAttribute('href', params.value);
+                        this.eGui.setAttribute('style', "text-decoration:none");
+                        this.eGui.setAttribute('target', "_blank");
+                    }
+                    getGui() {
+                        return this.eGui;
+                    }
+                }
+                """
+            ),
         )
-        for year in unique_years
-    ]
-    batting_result = pd.DataFrame(batting_result)
-    batting_result.index = ["すべて"] + [f"{year}年" for year in unique_years]
+        gridOptions = gb.build()
+        AgGrid(
+            __batting_df,
+            gridOptions=gridOptions,
+            allow_unsafe_jscode=True,
+        )
+        st.dataframe(filtered_batting_result)
 
-    # 表示
-    st.write("### 打撃成績")
-    _batting_df = _batting_df.rename(columns=column_name)
-    _batting_df["試合日"] = _batting_df["試合日"].dt.strftime("%Y/%m/%d")
-
-    __batting_df = _batting_df[display_batting_columns]
-    gb = GridOptionsBuilder.from_dataframe(__batting_df)
-    gb.configure_default_column(minWidth=50, **{"maxWidth": 90})
-    gb.configure_column(
-        "詳細",
-        header_name="詳細",
-        cellRenderer=JsCode(
-            """
-            class UrlCellRenderer {
-                init(params) {
-                    this.eGui = document.createElement('a');
-                    this.eGui.innerText = "詳細";
-                    this.eGui.setAttribute('href', params.value);
-                    this.eGui.setAttribute('style', "text-decoration:none");
-                    this.eGui.setAttribute('target', "_blank");
-                }
-                getGui() {
-                    return this.eGui;
-                }
-            }
-            """
-        ),
-    )
-    gridOptions = gb.build()
-    AgGrid(
-        __batting_df,
-        gridOptions=gridOptions,
-        allow_unsafe_jscode=True,
-    )
-    st.dataframe(filtered_batting_result)
-
-    if batting_result.shape[0] == 1:
+        if batting_result.shape[0] == 1:
+            st.write("#### この選手は打者として出場していません")
+        else:
+            batting_result = batting_result.style.background_gradient(cmap=cm, axis=0)
+            batting_result = batting_result.format(batting_format)
+            st.dataframe(batting_result)
+    except IndexError:
         st.write("#### この選手は打者として出場していません")
-    else:
-        batting_result = batting_result.style.background_gradient(cmap=cm, axis=0)
-        batting_result = batting_result.format(batting_format)
-        st.dataframe(batting_result)
 
     st.write("### 投手成績")
     unique_years = pd.to_datetime(pitching_df["game_date"]).dt.year.unique()
@@ -672,58 +675,61 @@ def display_player_data(
         used_key_num=f"{used_key_num}_1",
     )
 
-    filtered_pitching_result = [calc_pitching_data(_pitching_df)]
-    filtered_pitching_result = pd.DataFrame(filtered_pitching_result)
-    filtered_pitching_result.index = ["フィルタ後"]
+    try:
+        filtered_pitching_result = [calc_pitching_data(_pitching_df)]
+        filtered_pitching_result = pd.DataFrame(filtered_pitching_result)
+        filtered_pitching_result.index = ["フィルタ後"]
 
-    pitching_result = [calc_pitching_data(pitching_df),] + [
-        calc_pitching_data(
-            display_filtered_df(pitching_df, team, selected_option4=str(year))
+        pitching_result = [calc_pitching_data(pitching_df),] + [
+            calc_pitching_data(
+                display_filtered_df(pitching_df, team, selected_option4=str(year))
+            )
+            for year in unique_years
+        ]
+        pitching_result = pd.DataFrame(pitching_result)
+        pitching_result.index = ["すべて"] + [f"{year}年" for year in unique_years]
+
+        # 表示
+        _pitching_df = _pitching_df.rename(columns=column_name)
+        _pitching_df["試合日"] = _pitching_df["試合日"].dt.strftime("%Y/%m/%d")
+
+        __pitching_df = _pitching_df[display_pitching_columns]
+        gb = GridOptionsBuilder.from_dataframe(__pitching_df)
+        gb.configure_default_column(minWidth=50, **{"maxWidth": 90})
+        gb.configure_column(
+            "詳細",
+            header_name="詳細",
+            cellRenderer=JsCode(
+                """
+                class UrlCellRenderer {
+                    init(params) {
+                        this.eGui = document.createElement('a');
+                        this.eGui.innerText = "詳細";
+                        this.eGui.setAttribute('href', params.value);
+                        this.eGui.setAttribute('style', "text-decoration:none");
+                        this.eGui.setAttribute('target', "_blank");
+                    }
+                    getGui() {
+                        return this.eGui;
+                    }
+                }
+                """
+            ),
         )
-        for year in unique_years
-    ]
-    pitching_result = pd.DataFrame(pitching_result)
-    pitching_result.index = ["すべて"] + [f"{year}年" for year in unique_years]
+        gridOptions = gb.build()
+        AgGrid(
+            __pitching_df,
+            gridOptions=gridOptions,
+            allow_unsafe_jscode=True,
+        )
 
-    # 表示
-    _pitching_df = _pitching_df.rename(columns=column_name)
-    _pitching_df["試合日"] = _pitching_df["試合日"].dt.strftime("%Y/%m/%d")
+        st.dataframe(filtered_pitching_result)
 
-    __pitching_df = _pitching_df[display_pitching_columns]
-    gb = GridOptionsBuilder.from_dataframe(__pitching_df)
-    gb.configure_default_column(minWidth=50, **{"maxWidth": 90})
-    gb.configure_column(
-        "詳細",
-        header_name="詳細",
-        cellRenderer=JsCode(
-            """
-            class UrlCellRenderer {
-                init(params) {
-                    this.eGui = document.createElement('a');
-                    this.eGui.innerText = "詳細";
-                    this.eGui.setAttribute('href', params.value);
-                    this.eGui.setAttribute('style', "text-decoration:none");
-                    this.eGui.setAttribute('target', "_blank");
-                }
-                getGui() {
-                    return this.eGui;
-                }
-            }
-            """
-        ),
-    )
-    gridOptions = gb.build()
-    AgGrid(
-        __pitching_df,
-        gridOptions=gridOptions,
-        allow_unsafe_jscode=True,
-    )
-
-    st.dataframe(filtered_pitching_result)
-
-    if pitching_result.shape[0] == 1:
+        if pitching_result.shape[0] == 1:
+            st.write("#### この選手は投手として登板していません")
+        else:
+            pitching_result = pitching_result.style.background_gradient(cmap=cm, axis=0)
+            pitching_result = pitching_result.format(pitching_format)
+            st.write(pitching_result)
+    except IndexError:
         st.write("#### この選手は投手として登板していません")
-    else:
-        pitching_result = pitching_result.style.background_gradient(cmap=cm, axis=0)
-        pitching_result = pitching_result.format(pitching_format)
-        st.write(pitching_result)
