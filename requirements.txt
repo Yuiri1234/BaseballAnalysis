@@ -4,3 +4,4 @@ streamlit
 pandas
 numpy
 seaborn
+streamlit-aggrid

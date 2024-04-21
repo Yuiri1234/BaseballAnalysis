@@ -1,12 +1,19 @@
 import pandas as pd
 import streamlit as st
-from display import (
+from lib.display import (
     display_batting_data,
     display_pitching_data,
     display_player_data,
     display_score_data,
 )
-from info import team_dict, teams_url
+from lib.info import team_dict, teams_url
+
+st.set_page_config(
+    page_title="分析アプリ",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+pd.set_option("display.max_colwidth", 80)
 
 
 def main():

@@ -1,3 +1,11 @@
+from lib.info import teams_url
+
+def get_opponent_team(row, team):
+    if row["team_name_top"] == team:
+        return row["team_name_bottom"]
+    else:
+        return row["team_name_top"]
+
 def win_or_lose(row, team):
     if row["team_name_top"] == team:
         if row["points_top"] > row["points_bottom"]:
@@ -49,3 +57,6 @@ def calc_inning_losts(row, team):
         for i in range(1, 10):
             tmp_row.rename({f"{i}_top": f"{i}_losts"}, inplace=True)
     return tmp_row[[f"{i}_losts" for i in range(1, 10)]]
+
+def get_teams_url(game, team):
+    return f"{teams_url}{team}/game/{game}"

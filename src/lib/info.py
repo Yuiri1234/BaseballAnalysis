@@ -5,12 +5,15 @@ team_dict = {
 }
 
 column_name = {
+    "game": "ID",
+    "game_url": "詳細",
     "game_type": "試合種別",
     "game_date": "試合日",
     "game_day": "曜日",
     "game_time": "時間",
     "team_name_top": "先攻",
     "team_name_bottom": "後攻",
+    "oppo_team": "対戦相手",
     "1_top": "1回表",
     "2_top": "2回表",
     "3_top": "3回表",

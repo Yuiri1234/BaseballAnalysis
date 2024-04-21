@@ -171,8 +171,9 @@ def main(args):
         score_df_all.to_csv(f"{folder}/score.csv", index=False)
         batting_df_all.to_csv(f"{folder}/batting.csv", index=False)
         pitching_df_all.to_csv(f"{folder}/pitching.csv", index=False)
-    except ValueError as e:
+    except ValueError:
         print(f"{args.year}年のデータがありません")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
