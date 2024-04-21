@@ -1,5 +1,6 @@
 import datetime
 
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import streamlit as st
@@ -191,8 +192,14 @@ def display_filter_options(df):
         selected_option3 = st.selectbox("結果", options, index=0)
     with col4:
         unique_years = pd.to_datetime(df["game_date"]).dt.year.unique()
-        options = ["すべて"] + [f"{year}年" for year in unique_years] + ["直近5試合", "その他"]
-        selected_option4 = st.selectbox("年", options, index=0)
+        unique_months = np.sort(pd.to_datetime(df["game_date"]).dt.month.unique())
+        options = (
+            ["すべて"]
+            + [f"{year}年" for year in unique_years]
+            + [f"{month}月" for month in unique_months]
+            + ["直近5試合", "その他"]
+        )
+        selected_option4 = st.selectbox("期間", options, index=0)
     with col5:
         unique_oppo_teams = df["oppo_team"].unique()
         options = ["すべて"] + list(unique_oppo_teams)
@@ -263,8 +270,13 @@ def display_filtered_df(
     elif selected_option4 == "直近5試合":
         display_df = display_df.sort_values("game_date", ascending=False).head(5)
     else:
-        year = int(selected_option4.replace("年", ""))
-        display_df = display_df[display_df["game_date"].dt.year == year]
+        selected_option4 = int(selected_option4.replace("年", "").replace("月", ""))
+        if int(selected_option4) > 2000:
+            display_df = display_df[display_df["game_date"].dt.year == selected_option4]
+        elif int(selected_option4) >= 1 and int(selected_option4) <= 12:
+            display_df = display_df[
+                display_df["game_date"].dt.month == selected_option4
+            ]
 
     if selected_option5 == "すべて":
         display_df = display_df
@@ -331,14 +343,29 @@ def display_score_data(score_df, team, used_key_num):
 
     # 年度別
     unique_years = pd.to_datetime(score_df["game_date"]).dt.year.unique()
-    score_results = [calc_score_data(display_filtered_df(score_df, team), team)] + [
-        calc_score_data(
-            display_filtered_df(score_df, team, selected_option4=str(year)), team
-        )
-        for year in unique_years
-    ]
+    unique_months = np.sort(pd.to_datetime(score_df["game_date"]).dt.month.unique())
+
+    score_results = (
+        [calc_score_data(display_filtered_df(score_df, team), team)]
+        + [
+            calc_score_data(
+                display_filtered_df(score_df, team, selected_option4=str(year)), team
+            )
+            for year in unique_years
+        ]
+        + [
+            calc_score_data(
+                display_filtered_df(score_df, team, selected_option4=str(month)), team
+            )
+            for month in unique_months
+        ]
+    )
     score_results = pd.DataFrame(score_results)
-    score_results.index = ["すべて"] + [f"{year}年" for year in unique_years]
+    score_results.index = (
+        ["すべて"]
+        + [f"{year}年" for year in unique_years]
+        + [f"{month}月" for month in unique_months]
+    )
 
     # イニング別
     # フィルタ後
@@ -350,26 +377,54 @@ def display_score_data(score_df, team, used_key_num):
     filtered_inning_score.index = ["平均得点", "平均失点"]
 
     # 年度別得点
-    inning_point = [calc_inning_data(score_df, type="points")] + [
-        calc_inning_data(
-            display_filtered_df(score_df, team, selected_option4=str(year)),
-            type="points",
-        )
-        for year in unique_years
-    ]
+    inning_point = (
+        [calc_inning_data(score_df, type="points")]
+        + [
+            calc_inning_data(
+                display_filtered_df(score_df, team, selected_option4=str(year)),
+                type="points",
+            )
+            for year in unique_years
+        ]
+        + [
+            calc_inning_data(
+                display_filtered_df(score_df, team, selected_option4=str(month)),
+                type="points",
+            )
+            for month in unique_months
+        ]
+    )
     inning_point = pd.DataFrame(inning_point)
-    inning_point.index = ["すべて(得点)"] + [f"{year}年(得点)" for year in unique_years]
+    inning_point.index = (
+        ["すべて(得点)"]
+        + [f"{year}年(得点)" for year in unique_years]
+        + [f"{month}月(得点)" for month in unique_months]
+    )
 
     # 年度別失点
-    inning_losts = [calc_inning_data(score_df, type="losts")] + [
-        calc_inning_data(
-            display_filtered_df(score_df, team, selected_option4=str(year)),
-            type="losts",
-        )
-        for year in unique_years
-    ]
+    inning_losts = (
+        [calc_inning_data(score_df, type="losts")]
+        + [
+            calc_inning_data(
+                display_filtered_df(score_df, team, selected_option4=str(year)),
+                type="losts",
+            )
+            for year in unique_years
+        ]
+        + [
+            calc_inning_data(
+                display_filtered_df(score_df, team, selected_option4=str(month)),
+                type="losts",
+            )
+            for month in unique_months
+        ]
+    )
     inning_losts = pd.DataFrame(inning_losts)
-    inning_losts.index = ["すべて(失点)"] + [f"{year}年(失点)" for year in unique_years]
+    inning_losts.index = (
+        ["すべて(失点)"]
+        + [f"{year}年(失点)" for year in unique_years]
+        + [f"{month}月(失点)" for month in unique_months]
+    )
 
     # 表示
     _score_df = _score_df.rename(columns=column_name)
@@ -592,6 +647,7 @@ def display_player_data(
     ) = display_filter_options(batting_df)
 
     unique_years = pd.to_datetime(batting_df["game_date"]).dt.year.unique()
+    unique_months = np.sort(pd.to_datetime(batting_df["game_date"]).dt.month.unique())
     _batting_df = display_filtered_df(
         batting_df,
         team,
@@ -608,14 +664,27 @@ def display_player_data(
         filtered_batting_result = pd.DataFrame(filtered_batting_result)
         filtered_batting_result.index = ["フィルタ後"]
 
-        batting_result = [calc_batting_data(batting_df)] + [
-            calc_batting_data(
-                display_filtered_df(batting_df, team, selected_option4=str(year))
-            )
-            for year in unique_years
-        ]
+        batting_result = (
+            [calc_batting_data(batting_df)]
+            + [
+                calc_batting_data(
+                    display_filtered_df(batting_df, team, selected_option4=str(year))
+                )
+                for year in unique_years
+            ]
+            + [
+                calc_batting_data(
+                    display_filtered_df(batting_df, team, selected_option4=str(month))
+                )
+                for month in unique_months
+            ]
+        )
         batting_result = pd.DataFrame(batting_result)
-        batting_result.index = ["すべて"] + [f"{year}年" for year in unique_years]
+        batting_result.index = (
+            ["すべて"]
+            + [f"{year}年" for year in unique_years]
+            + [f"{month}月" for month in unique_months]
+        )
 
         # 表示
         st.write("### 打撃成績")
@@ -664,6 +733,7 @@ def display_player_data(
 
     st.write("### 投手成績")
     unique_years = pd.to_datetime(pitching_df["game_date"]).dt.year.unique()
+    unique_months = np.sort(pd.to_datetime(pitching_df["game_date"]).dt.month.unique())
     _pitching_df = display_filtered_df(
         pitching_df,
         team,
@@ -680,14 +750,29 @@ def display_player_data(
         filtered_pitching_result = pd.DataFrame(filtered_pitching_result)
         filtered_pitching_result.index = ["フィルタ後"]
 
-        pitching_result = [calc_pitching_data(pitching_df),] + [
-            calc_pitching_data(
-                display_filtered_df(pitching_df, team, selected_option4=str(year))
-            )
-            for year in unique_years
-        ]
+        pitching_result = (
+            [
+                calc_pitching_data(pitching_df),
+            ]
+            + [
+                calc_pitching_data(
+                    display_filtered_df(pitching_df, team, selected_option4=str(year))
+                )
+                for year in unique_years
+            ]
+            + [
+                calc_pitching_data(
+                    display_filtered_df(pitching_df, team, selected_option4=str(month))
+                )
+                for month in unique_months
+            ]
+        )
         pitching_result = pd.DataFrame(pitching_result)
-        pitching_result.index = ["すべて"] + [f"{year}年" for year in unique_years]
+        pitching_result.index = (
+            ["すべて"]
+            + [f"{year}年" for year in unique_years]
+            + [f"{month}月" for month in unique_months]
+        )
 
         # 表示
         _pitching_df = _pitching_df.rename(columns=column_name)
