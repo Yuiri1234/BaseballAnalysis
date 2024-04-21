@@ -3,20 +3,30 @@ import datetime
 import pandas as pd
 import seaborn as sns
 import streamlit as st
-from st_aggrid import AgGrid, JsCode
-from st_aggrid.grid_options_builder import GridOptionsBuilder
 from lib.calculate import (
     calc_inning_losts,
     calc_inning_points,
     calc_points_diff,
     calc_points_losts,
-    win_or_lose,
-    get_teams_url,
     get_opponent_team,
+    get_teams_url,
+    win_or_lose,
 )
-from lib.info import batting_format, column_name, pitching_format, score_format, team_dict
+from lib.info import (
+    batting_format,
+    column_name,
+    display_batting_columns,
+    display_pitching_columns,
+    display_score_columns,
+    pitching_format,
+    score_format,
+    team_dict,
+)
+from st_aggrid import AgGrid, JsCode
+from st_aggrid.grid_options_builder import GridOptionsBuilder
 
 cm = sns.light_palette("seagreen", as_cmap=True)
+
 
 def calc_inning_data(df, type="points", calc="mean"):
     if calc == "sum":
@@ -182,7 +192,13 @@ def display_filter_options(df):
         unique_oppo_teams = df["oppo_team"].unique()
         options = ["すべて"] + list(unique_oppo_teams)
         selected_option5 = st.selectbox("対戦相手", options, index=0)
-    return selected_option1, selected_option2, selected_option3, selected_option4, selected_option5
+    return (
+        selected_option1,
+        selected_option2,
+        selected_option3,
+        selected_option4,
+        selected_option5,
+    )
 
 
 def display_filter_calendar(df, key1="selected_date1", key2="selected_date2"):
@@ -257,7 +273,9 @@ def display_score_data(score_df, team, used_key_num):
 
     # 計算
     score_df["game_url"] = score_df["game"].apply(get_teams_url, team=team)
-    score_df["oppo_team"] = score_df.apply(lambda row: get_opponent_team(row, team_dict[team]), axis=1)
+    score_df["oppo_team"] = score_df.apply(
+        lambda row: get_opponent_team(row, team_dict[team]), axis=1
+    )
     score_df["game_date"] = pd.to_datetime(score_df["game_date"])
     score_df[["points", "losts"]] = score_df.apply(
         lambda row: calc_points_losts(row, team_dict[team]),
@@ -353,29 +371,12 @@ def display_score_data(score_df, team, used_key_num):
     _score_df["試合日"] = _score_df["試合日"].dt.strftime("%Y/%m/%d")
     st.write("### チーム成績")
 
-    __score_df = _score_df[
-        [
-            "詳細",
-            "試合種別",
-            "試合日",
-            "曜日",
-            "対戦相手",
-            "先攻",
-            "後攻",
-            "得点",
-            "失点",
-            "得失点差",
-            "結果",
-        ]
-    ]
+    __score_df = _score_df[display_score_columns]
     gb = GridOptionsBuilder.from_dataframe(__score_df)
-    gb.configure_default_column(
-        minWidth=50,
-        **{"maxWidth": 150}
-    )
+    gb.configure_default_column(minWidth=50, **{"maxWidth": 150})
     gb.configure_column(
-        "詳細", 
-        header_name="詳細", 
+        "詳細",
+        header_name="詳細",
         cellRenderer=JsCode(
             """
             class UrlCellRenderer {
@@ -391,14 +392,13 @@ def display_score_data(score_df, team, used_key_num):
                 }
             }
             """
-        )
+        ),
     )
     gridOptions = gb.build()
     AgGrid(
-        __score_df, 
+        __score_df,
         gridOptions=gridOptions,
         allow_unsafe_jscode=True,
-        
     )
     st.dataframe(filtered_score_results)
 
@@ -450,17 +450,21 @@ def display_player_data(
     score_df, batting_df, pitching_df, team, player_number, player_name, used_key_num
 ):
     st.write(f"## {player_name} ({player_number})")
+    batting_df = batting_df[batting_df["選手名"] == player_name]
+    pitching_df = pitching_df[pitching_df["選手名"] == player_name]
 
     # 計算
     score_df["game_url"] = score_df["game"].apply(get_teams_url, team=team)
-    score_df["oppo_team"] = score_df.apply(lambda row: get_opponent_team(row, team_dict[team]), axis=1)
+    score_df["oppo_team"] = score_df.apply(
+        lambda row: get_opponent_team(row, team_dict[team]), axis=1
+    )
     score_df["game_date"] = pd.to_datetime(score_df["game_date"])
-    batting_df["game_date"] = pd.to_datetime(batting_df["game_date"])
-    pitching_df["game_date"] = pd.to_datetime(pitching_df["game_date"])
-
     score_df["result"] = score_df.apply(
         lambda row: win_or_lose(row, team_dict[team]), axis=1
     )
+
+    batting_df["game_date"] = pd.to_datetime(batting_df["game_date"])
+    pitching_df["game_date"] = pd.to_datetime(pitching_df["game_date"])
 
     batting_df = pd.merge(
         score_df, batting_df, on=["game_type", "game_date", "game_day", "game_time"]
@@ -478,7 +482,6 @@ def display_player_data(
         selected_option5,
     ) = display_filter_options(batting_df)
 
-    batting_df = batting_df[batting_df["選手名"] == player_name]
     unique_years = pd.to_datetime(batting_df["game_date"]).dt.year.unique()
     _batting_df = display_filtered_df(
         batting_df,
@@ -509,43 +512,12 @@ def display_player_data(
     _batting_df = _batting_df.rename(columns=column_name)
     _batting_df["試合日"] = _batting_df["試合日"].dt.strftime("%Y/%m/%d")
 
-    __batting_df =_batting_df[
-        [
-            "詳細",
-            "選手名",
-            "試合種別",
-            "試合日",
-            "対戦相手",
-            "結果",
-            "出場",
-            "打順",
-            "守備",
-            "打席",
-            "打数",
-            "安打",
-            "本",
-            "打点",
-            "得点",
-            "盗塁",
-            "二塁打",
-            "三塁打",
-            "三振",
-            "四死球",
-            "犠打",
-            "犠飛",
-            "併殺打",
-            "敵失",
-            "失策",
-        ]
-    ]
+    __batting_df = _batting_df[display_batting_columns]
     gb = GridOptionsBuilder.from_dataframe(__batting_df)
-    gb.configure_default_column(
-        minWidth=50,
-        **{"maxWidth": 90}
-    )
+    gb.configure_default_column(minWidth=50, **{"maxWidth": 90})
     gb.configure_column(
-        "詳細", 
-        header_name="詳細", 
+        "詳細",
+        header_name="詳細",
         cellRenderer=JsCode(
             """
             class UrlCellRenderer {
@@ -561,11 +533,11 @@ def display_player_data(
                 }
             }
             """
-        )
+        ),
     )
     gridOptions = gb.build()
     AgGrid(
-        __batting_df, 
+        __batting_df,
         gridOptions=gridOptions,
         allow_unsafe_jscode=True,
     )
@@ -579,7 +551,6 @@ def display_player_data(
         st.dataframe(batting_result)
 
     st.write("### 投手成績")
-    pitching_df = pitching_df[pitching_df["選手名"] == player_name]
     unique_years = pd.to_datetime(pitching_df["game_date"]).dt.year.unique()
     _pitching_df = display_filtered_df(
         pitching_df,
@@ -609,37 +580,12 @@ def display_player_data(
     _pitching_df = _pitching_df.rename(columns=column_name)
     _pitching_df["試合日"] = _pitching_df["試合日"].dt.strftime("%Y/%m/%d")
 
-    __pitching_df = _pitching_df[
-        [
-            "詳細",
-            "選手名",
-            "試合種別",
-            "試合日",
-            "対戦相手",
-            "結果",
-            "勝敗",
-            "投球回",
-            "失点",
-            "自責点",
-            "完投",
-            "完封",
-            "被安打",
-            "被本塁打",
-            "奪三振",
-            "与四死球",
-            "ボーク",
-            "暴投",
-            "登板順",
-        ]
-    ]
+    __pitching_df = _pitching_df[display_pitching_columns]
     gb = GridOptionsBuilder.from_dataframe(__pitching_df)
-    gb.configure_default_column(
-        minWidth=50,
-        **{"maxWidth": 90}
-    )
+    gb.configure_default_column(minWidth=50, **{"maxWidth": 90})
     gb.configure_column(
-        "詳細", 
-        header_name="詳細", 
+        "詳細",
+        header_name="詳細",
         cellRenderer=JsCode(
             """
             class UrlCellRenderer {
@@ -655,11 +601,11 @@ def display_player_data(
                 }
             }
             """
-        )
+        ),
     )
     gridOptions = gb.build()
     AgGrid(
-        __pitching_df, 
+        __pitching_df,
         gridOptions=gridOptions,
         allow_unsafe_jscode=True,
     )

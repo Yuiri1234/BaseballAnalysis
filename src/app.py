@@ -6,7 +6,6 @@ from lib.display import (
     display_player_data,
     display_score_data,
 )
-from lib.info import team_dict, teams_url
 
 st.set_page_config(
     page_title="分析アプリ",
@@ -23,7 +22,7 @@ def main():
     batting_df = pd.read_csv(f"data/{team}/batting.csv")
     pitching_df = pd.read_csv(f"data/{team}/pitching.csv")
 
-    st.title(f"[{team_dict[team]}]({teams_url + team}) 分析アプリ")
+    st.title("分析アプリ")
 
     st.sidebar.title("メニュー")
     selected_type = st.sidebar.radio("表示するデータ", ["スコア", "打撃成績", "投手成績", "個人成績"])
