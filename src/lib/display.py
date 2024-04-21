@@ -921,8 +921,10 @@ def display_player_data(
         if pitching_result.shape[0] == 1:
             st.write("#### この選手は投手として登板していません")
         else:
+            st.write("#### 期間別")
+            pitching_result = pitching_result.fillna({"勝率": 0, "防御率": 99.99})
             pitching_result = pitching_result.style.background_gradient(cmap=cm, axis=0)
             pitching_result = pitching_result.format(pitching_format)
-            st.write(pitching_result)
+            st.dataframe(pitching_result)
     except IndexError:
         st.write("#### この選手は投手として登板していません")
