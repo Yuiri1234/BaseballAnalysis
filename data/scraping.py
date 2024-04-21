@@ -22,12 +22,13 @@ def get_game_urls(links, url_header):
     return game_urls
 
 
-def get_game_info(soup):
+def get_game_info(soup, game):
     dev_list = soup.find_all("div")
     info = {}
     for dev in dev_list:
         if "dateInfo" in dev.get("class"):
             date_info = dev.text.split("\n")
+            info["game"] = game
             info["game_type"] = date_info[1]
             date = date_info[2].split("(")
             info["game_date"] = datetime.strptime(date[0], "%Y/%m/%d").date()
@@ -82,12 +83,13 @@ def get_score_df(df, info_df):
 def get_stats_df(df, info_df):
     df = df.rename(columns={df.columns[0]: "背番号"})
     df = df.iloc[:-1]
+    df["game"] = info_df["game"].values[0]
     df["game_type"] = info_df["game_type"].values[0]
     df["game_date"] = info_df["game_date"].values[0]
     df["game_day"] = info_df["game_day"].values[0]
     df["game_time"] = info_df["game_time"].values[0]
-    columns = df.columns[-4:].values
-    columns = np.concatenate([columns, df.columns[:-4].values])
+    columns = df.columns[-5:].values
+    columns = np.concatenate([columns, df.columns[:-5].values])
     df = df[columns]
     return df
 
@@ -144,7 +146,7 @@ def main(args):
                 soup = BeautifulSoup(html_content, "html.parser")
                 table_list = soup.find_all("table")
                 try:
-                    info_df = get_game_info(soup)
+                    info_df = get_game_info(soup, game)
                     score_df = get_table_info(table_list[0])
                     score_df = get_score_df(score_df, info_df)
                     score_df_list.append(score_df)
@@ -162,15 +164,15 @@ def main(args):
                     print(f"game_url: {game_url}")
                     print(f"error: {e}")
         page += 1
-
-    score_df_all = pd.concat(score_df_list, axis=0, ignore_index=True)
-    batting_df_all = pd.concat(batting_df_list, axis=0, ignore_index=True)
-    pitching_df_all = pd.concat(pitching_df_list, axis=0, ignore_index=True)
-
-    score_df_all.to_csv(f"{folder}/score.csv", index=False)
-    batting_df_all.to_csv(f"{folder}/batting.csv", index=False)
-    pitching_df_all.to_csv(f"{folder}/pitching.csv", index=False)
-
+    try:
+        score_df_all = pd.concat(score_df_list, axis=0, ignore_index=True)
+        batting_df_all = pd.concat(batting_df_list, axis=0, ignore_index=True)
+        pitching_df_all = pd.concat(pitching_df_list, axis=0, ignore_index=True)
+        score_df_all.to_csv(f"{folder}/score.csv", index=False)
+        batting_df_all.to_csv(f"{folder}/batting.csv", index=False)
+        pitching_df_all.to_csv(f"{folder}/pitching.csv", index=False)
+    except ValueError as e:
+        print(f"{args.year}年のデータがありません")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
