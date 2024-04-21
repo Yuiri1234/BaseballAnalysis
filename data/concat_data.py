@@ -15,7 +15,7 @@ def main(args):
     batting_df_list = []
     pitching_df_list = []
 
-    for year in range(2025, 2018, -1):
+    for year in range(args.last_year, args.first_year, -1):
         files = glob(f"{folder}/{year}/*")
         for file in files:
             filename = file.split("/")[-1].split(".")[0]
@@ -37,5 +37,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--team", type=str, default="ryunen_busters")
+    parser.add_argument("--first-year", type=int, default=2020)
+    parser.add_argument("--last-year", type=int, default=2025)
     args = parser.parse_args()
     main(args)
