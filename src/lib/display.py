@@ -99,6 +99,7 @@ def calc_batting_data(_batting_df):
         average = None
 
     return {
+        "背番号": _batting_df["背番号"].values[0],
         "試合数": _batting_df.shape[0],
         "打率": average,
         "打席": _batting_df["打席"].sum(),
@@ -140,7 +141,10 @@ def calc_pitching_data(_pitching_df):
         win_rate = None
     try:
         sum_inning = _pitching_df["投球回(フル)"].sum() + _pitching_df["投球回(1/3)"].sum() / 3
-        diffence_rate = _pitching_df["自責点"].sum() / sum_inning * 7  # 7回で1試合
+        if sum_inning == 0:
+            diffence_rate = None
+        else:
+            diffence_rate = _pitching_df["自責点"].sum() / sum_inning * 7  # 7回で1試合
     except ZeroDivisionError:
         sum_inning = 0
         diffence_rate = None
@@ -149,6 +153,7 @@ def calc_pitching_data(_pitching_df):
         f"{_pitching_df['投球回(1/3)'].sum() % 3}/3",
     )
     return {
+        "背番号": _pitching_df["背番号"].values[0],
         "試合数": _pitching_df.shape[0],
         "勝": _pitching_df[_pitching_df["勝敗"] == "勝"].shape[0],
         "負": _pitching_df[_pitching_df["勝敗"] == "負"].shape[0],
@@ -426,24 +431,122 @@ def display_score_data(score_df, team, used_key_num):
     st.dataframe(inning_losts)
 
 
-def display_batting_data(score_df, batting_df, used_key_num):
+def display_batting_data(score_df, batting_df, team, used_key_num):
     # 計算
+    score_df["game_url"] = score_df["game"].apply(get_teams_url, team=team)
+    score_df["oppo_team"] = score_df.apply(
+        lambda row: get_opponent_team(row, team_dict[team]), axis=1
+    )
+    score_df["game_date"] = pd.to_datetime(score_df["game_date"])
+    score_df["result"] = score_df.apply(
+        lambda row: win_or_lose(row, team_dict[team]), axis=1
+    )
+
+    batting_df["game_date"] = pd.to_datetime(batting_df["game_date"])
+
+    batting_df = pd.merge(
+        score_df,
+        batting_df,
+        on=["game", "game_type", "game_date", "game_day", "game_time"],
+    )
+
+    # フィルタリング
+    (
+        selected_option1,
+        selected_option2,
+        selected_option3,
+        selected_option4,
+        selected_option5,
+    ) = display_filter_options(batting_df)
+
+    _batting_df = display_filtered_df(
+        batting_df,
+        team,
+        selected_option1,
+        selected_option2,
+        selected_option3,
+        selected_option4,
+        selected_option5,
+        used_key_num=f"{used_key_num}_0",
+    )
 
     # 表示
-    score_df = score_df.rename(columns=column_name)
-    batting_df = batting_df.rename(columns=column_name)
+    _batting_df = _batting_df.rename(columns=column_name)
+    result_df = pd.DataFrame()
+    for player, group in _batting_df.groupby("選手名"):
+        player_df = pd.DataFrame([calc_batting_data(group)])
+        player_df.index = [player]
+        try:
+            player_df["背番号"] = int(player_df["背番号"].values[0])
+            result_df = pd.concat([result_df, player_df])
+        except ValueError:
+            pass
+    # ソート
+    result_df = result_df.sort_values("背番号")
+
     st.write("## 打撃成績")
-    st.write(batting_df)
+    result_df = result_df.style.background_gradient(cmap=cm, axis=0)
+    result_df = result_df.format(batting_format)
+    st.dataframe(result_df)
 
 
-def display_pitching_data(score_df, pitching_df, used_key_num):
+def display_pitching_data(score_df, pitching_df, team, used_key_num):
     # 計算
+    score_df["game_url"] = score_df["game"].apply(get_teams_url, team=team)
+    score_df["oppo_team"] = score_df.apply(
+        lambda row: get_opponent_team(row, team_dict[team]), axis=1
+    )
+    score_df["game_date"] = pd.to_datetime(score_df["game_date"])
+    score_df["result"] = score_df.apply(
+        lambda row: win_or_lose(row, team_dict[team]), axis=1
+    )
+
+    pitching_df["game_date"] = pd.to_datetime(pitching_df["game_date"])
+
+    pitching_df = pd.merge(
+        score_df,
+        pitching_df,
+        on=["game", "game_type", "game_date", "game_day", "game_time"],
+    )
+
+    # フィルタリング
+    (
+        selected_option1,
+        selected_option2,
+        selected_option3,
+        selected_option4,
+        selected_option5,
+    ) = display_filter_options(pitching_df)
+
+    _pitching_df = display_filtered_df(
+        pitching_df,
+        team,
+        selected_option1,
+        selected_option2,
+        selected_option3,
+        selected_option4,
+        selected_option5,
+        used_key_num=f"{used_key_num}_0",
+    )
 
     # 表示
-    score_df = score_df.rename(columns=column_name)
-    pitching_df = pitching_df.rename(columns=column_name)
+    _pitching_df = _pitching_df.rename(columns=column_name)
+    result_df = pd.DataFrame()
+    for player, group in _pitching_df.groupby("選手名"):
+        player_df = pd.DataFrame([calc_pitching_data(group)])
+        player_df.index = [player]
+        try:
+            player_df["背番号"] = int(player_df["背番号"].values[0])
+            result_df = pd.concat([result_df, player_df])
+        except ValueError:
+            pass
+    # ソート
+    result_df = result_df.sort_values("背番号")
+
     st.write("## 投手成績")
-    st.write(pitching_df)
+    result_df = result_df.style.background_gradient(cmap=cm, axis=0)
+    result_df = result_df.format(pitching_format)
+    st.dataframe(result_df)
 
 
 def display_player_data(
