@@ -20,6 +20,7 @@ from lib.info import (
     display_pitching_columns,
     display_score_columns,
     pitching_format,
+    position_list,
     score_format,
     team_dict,
 )
@@ -228,6 +229,48 @@ def display_filter_calendar(df, key1="selected_date1", key2="selected_date2"):
     ]
 
 
+def display_filter_batting_all(df, only_regulation=False):
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        regulation = st.number_input("規定通算打席数", 0, 100, 30)
+    if only_regulation:
+        return regulation
+    else:
+        with col2:
+            unique_order = list(df["打順"].unique())
+            options = ["すべて"] + [f"{i}番" for i in unique_order]
+            order = st.selectbox("打順", options, index=0)
+        with col3:
+            unique_positions = np.sort(df["守備"].unique())
+            options = ["すべて"] + [pos for pos in unique_positions]
+            position = st.selectbox("守備", options, index=0)
+        return regulation, order, position
+
+
+def display_filter_batting(df):
+    col1, col2 = st.columns(2)
+    with col1:
+        unique_order = list(df["打順"].unique())
+        unique_order = [int(i) for i in unique_order if i not in ["-"]]
+        unique_order = np.sort(unique_order)
+        options = ["すべて"] + [f"{i}番" for i in unique_order]
+        order = st.selectbox("打順", options, index=0)
+    with col2:
+        unique_positions = list(df["守備"].unique())
+        unique_positions = [pos for pos in unique_positions if pos not in ["-"]]
+        unique_positions = sorted(unique_positions, key=sort_key)
+        options = ["すべて"] + [pos for pos in unique_positions]
+        position = st.selectbox("守備", options, index=0)
+    return order, position, unique_order, unique_positions
+
+
+def sort_key(item):
+    try:
+        return position_list.index(item)
+    except ValueError:
+        return len(position_list)
+
+
 def display_filtered_df(
     df,
     team,
@@ -237,6 +280,8 @@ def display_filtered_df(
     selected_option4="すべて",
     selected_option5="すべて",
     used_key_num=0,
+    order=None,
+    position=None,
 ):
     if selected_option1 == "すべて":
         display_df = df
@@ -284,6 +329,18 @@ def display_filtered_df(
         display_df = display_df
     else:
         display_df = display_df[display_df["oppo_team"] == selected_option5]
+
+    if order == "すべて" or order is None:
+        display_df = display_df
+    else:
+        order = order.replace("番", "")
+        display_df = display_df[display_df["打順"] == order]
+
+    if position == "すべて" or position is None:
+        display_df = display_df
+    else:
+        display_df = display_df[display_df["守備"] == position]
+
     return display_df
 
 
@@ -515,10 +572,13 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
         selected_option4,
         selected_option5,
     ) = display_filter_options(batting_df)
+    regulation = display_filter_batting_all(batting_df, only_regulation=True)
 
     # 表示
     result_df = pd.DataFrame()
     for player, group in batting_df.groupby("選手名"):
+        if group["打席"].sum() < regulation:
+            continue
         _group = display_filtered_df(
             group,
             team,
@@ -529,13 +589,15 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
             selected_option5,
             used_key_num=f"{used_key_num}_0",
         )
-        _group = _group.rename(columns=column_name)
-        player_df = pd.DataFrame([calc_batting_data(_group)])
-        player_df.index = [player]
         try:
+            _group = _group.rename(columns=column_name)
+            player_df = pd.DataFrame([calc_batting_data(_group)])
+            player_df.index = [player]
             player_df["背番号"] = int(player_df["背番号"].values[0])
             result_df = pd.concat([result_df, player_df])
         except ValueError:
+            pass
+        except IndexError:
             pass
     try:
         # ソート
@@ -590,13 +652,15 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
             selected_option5,
             used_key_num=f"{used_key_num}_0",
         )
-        _group = _group.rename(columns=column_name)
-        player_df = pd.DataFrame([calc_pitching_data(_group)])
-        player_df.index = [player]
         try:
+            _group = _group.rename(columns=column_name)
+            player_df = pd.DataFrame([calc_pitching_data(_group)])
+            player_df.index = [player]
             player_df["背番号"] = int(player_df["背番号"].values[0])
             result_df = pd.concat([result_df, player_df])
         except ValueError:
+            pass
+        except IndexError:
             pass
     try:
         # ソート
@@ -645,6 +709,7 @@ def display_player_data(
         selected_option4,
         selected_option5,
     ) = display_filter_options(batting_df)
+    order, position, unique_order, unique_position = display_filter_batting(batting_df)
 
     unique_years = pd.to_datetime(batting_df["game_date"]).dt.year.unique()
     unique_months = np.sort(pd.to_datetime(batting_df["game_date"]).dt.month.unique())
@@ -657,79 +722,122 @@ def display_player_data(
         selected_option4,
         selected_option5,
         used_key_num=f"{used_key_num}_0",
+        order=order,
+        position=position,
     )
 
     try:
+        # フィルタ後
         filtered_batting_result = [calc_batting_data(_batting_df)]
         filtered_batting_result = pd.DataFrame(filtered_batting_result)
         filtered_batting_result.index = ["フィルタ後"]
-
-        batting_result = (
-            [calc_batting_data(batting_df)]
-            + [
-                calc_batting_data(
-                    display_filtered_df(batting_df, team, selected_option4=str(year))
-                )
-                for year in unique_years
-            ]
-            + [
-                calc_batting_data(
-                    display_filtered_df(batting_df, team, selected_option4=str(month))
-                )
-                for month in unique_months
-            ]
-        )
-        batting_result = pd.DataFrame(batting_result)
-        batting_result.index = (
-            ["すべて"]
-            + [f"{year}年" for year in unique_years]
-            + [f"{month}月" for month in unique_months]
-        )
-
-        # 表示
-        st.write("### 打撃成績")
-        _batting_df = _batting_df.rename(columns=column_name)
-        _batting_df["試合日"] = _batting_df["試合日"].dt.strftime("%Y/%m/%d")
-
-        __batting_df = _batting_df[display_batting_columns]
-        gb = GridOptionsBuilder.from_dataframe(__batting_df)
-        gb.configure_default_column(minWidth=50, **{"maxWidth": 90})
-        gb.configure_column(
-            "詳細",
-            header_name="詳細",
-            cellRenderer=JsCode(
-                """
-                class UrlCellRenderer {
-                    init(params) {
-                        this.eGui = document.createElement('a');
-                        this.eGui.innerText = "詳細";
-                        this.eGui.setAttribute('href', params.value);
-                        this.eGui.setAttribute('style', "text-decoration:none");
-                        this.eGui.setAttribute('target', "_blank");
-                    }
-                    getGui() {
-                        return this.eGui;
-                    }
-                }
-                """
-            ),
-        )
-        gridOptions = gb.build()
-        AgGrid(
-            __batting_df,
-            gridOptions=gridOptions,
-            allow_unsafe_jscode=True,
-        )
-        st.dataframe(filtered_batting_result)
-
-        if batting_result.shape[0] == 1:
-            st.write("#### この選手は打者として出場していません")
-        else:
-            batting_result = batting_result.style.background_gradient(cmap=cm, axis=0)
-            batting_result = batting_result.format(batting_format)
-            st.dataframe(batting_result)
     except IndexError:
+        filtered_batting_result = pd.DataFrame(
+            index=["フィルタ後"], columns=display_batting_columns
+        )
+        st.write("#### この条件に合う成績はありません")
+
+    # 期間別
+    batting_result = (
+        [calc_batting_data(batting_df)]
+        + [
+            calc_batting_data(
+                display_filtered_df(batting_df, team, selected_option4=str(year))
+            )
+            for year in unique_years
+        ]
+        + [
+            calc_batting_data(
+                display_filtered_df(batting_df, team, selected_option4=str(month))
+            )
+            for month in unique_months
+        ]
+    )
+    batting_result = pd.DataFrame(batting_result)
+    batting_result.index = (
+        ["すべて"]
+        + [f"{year}年" for year in unique_years]
+        + [f"{month}月" for month in unique_months]
+    )
+
+    # 打順別
+    batting_result_order = [
+        calc_batting_data(display_filtered_df(batting_df, team, order=str(order)))
+        for order in unique_order
+        if order in unique_order
+    ]
+    batting_result_order = pd.DataFrame(batting_result_order)
+    batting_result_order.index = unique_order
+
+    # 守備別
+    batting_result_position = [
+        calc_batting_data(display_filtered_df(batting_df, team, position=position))
+        for position in position_list
+        if position in unique_position
+    ]
+    batting_result_position = pd.DataFrame(batting_result_position)
+    batting_result_position.index = unique_position
+
+    # 表示
+    st.write("### 打撃成績")
+    _batting_df = _batting_df.rename(columns=column_name)
+    _batting_df["試合日"] = _batting_df["試合日"].dt.strftime("%Y/%m/%d")
+
+    __batting_df = _batting_df[display_batting_columns]
+    gb = GridOptionsBuilder.from_dataframe(__batting_df)
+    gb.configure_default_column(minWidth=50, **{"maxWidth": 90})
+    gb.configure_column(
+        "詳細",
+        header_name="詳細",
+        cellRenderer=JsCode(
+            """
+            class UrlCellRenderer {
+                init(params) {
+                    this.eGui = document.createElement('a');
+                    this.eGui.innerText = "詳細";
+                    this.eGui.setAttribute('href', params.value);
+                    this.eGui.setAttribute('style', "text-decoration:none");
+                    this.eGui.setAttribute('target', "_blank");
+                }
+                getGui() {
+                    return this.eGui;
+                }
+            }
+            """
+        ),
+    )
+    gridOptions = gb.build()
+    AgGrid(
+        __batting_df,
+        gridOptions=gridOptions,
+        allow_unsafe_jscode=True,
+    )
+    st.dataframe(filtered_batting_result)
+
+    if batting_result.shape[0] == 1:
         st.write("#### この選手は打者として出場していません")
+    else:
+        # 期間別
+        st.write("#### 期間別")
+        batting_result = batting_result.style.background_gradient(cmap=cm, axis=0)
+        batting_result = batting_result.format(batting_format)
+        st.dataframe(batting_result)
+
+        # 打順別
+        st.write("#### 打順別")
+        batting_result_order = batting_result_order.style.background_gradient(
+            cmap=cm, axis=0
+        )
+        batting_result_order = batting_result_order.format(batting_format)
+        st.dataframe(batting_result_order)
+
+        # 守備別
+        st.write("#### 先発守備位置別")
+        batting_result_position = batting_result_position.style.background_gradient(
+            cmap=cm, axis=0
+        )
+        batting_result_position = batting_result_position.format(batting_format)
+        st.dataframe(batting_result_position)
 
     st.write("### 投手成績")
     unique_years = pd.to_datetime(pitching_df["game_date"]).dt.year.unique()
