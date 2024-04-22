@@ -100,6 +100,29 @@ def calc_batting_data(_batting_df):
         slugging_percentage = None
         average = None
 
+    bb_k = (
+        _batting_df["四死球"].sum() / _batting_df["三振"].sum()
+        if _batting_df["三振"].sum() != 0
+        else 99.999
+    )
+
+    one_base_hit = (
+        _batting_df["安打"].sum()
+        - _batting_df["二塁打"].sum()
+        - _batting_df["三塁打"].sum()
+        - _batting_df["本"].sum()
+    )
+
+    try:
+        woba_basic = (
+            0.7 * (_batting_df["四死球"].sum())
+            + 0.9 * (one_base_hit + _batting_df["敵失"].sum())
+            + 1.3 * (_batting_df["二塁打"].sum() + _batting_df["三塁打"].sum())
+            + 2.0 * _batting_df["本"].sum()
+        ) / (_batting_df["打席"].sum() - _batting_df["犠打"].sum())
+    except ZeroDivisionError:
+        woba_basic = 99.999
+
     return {
         "背番号": _batting_df["背番号"].values[0],
         "試合数": _batting_df.shape[0],
@@ -107,18 +130,24 @@ def calc_batting_data(_batting_df):
         "打席": _batting_df["打席"].sum(),
         "打数": _batting_df["打数"].sum(),
         "安打": _batting_df["安打"].sum(),
+        "二塁打": _batting_df["二塁打"].sum(),
+        "三塁打": _batting_df["三塁打"].sum(),
         "本塁打": _batting_df["本"].sum(),
         "打点": _batting_df["打点"].sum(),
         "得点": _batting_df["得点"].sum(),
         "盗塁": _batting_df["盗塁"].sum(),
         "出塁率": on_base_percentage,
+        "塁打数": total_bases,
         "長打率": slugging_percentage,
         "OPS": on_base_percentage + slugging_percentage,
-        "二塁打": _batting_df["二塁打"].sum(),
-        "三塁打": _batting_df["三塁打"].sum(),
-        "塁打数": total_bases,
+        "IsoP": slugging_percentage - average,  # 純長打率
+        "IsoD": on_base_percentage - average,
+        "wOBA": woba_basic,
         "三振": _batting_df["三振"].sum(),
+        "K%": _batting_df["三振"].sum() / _batting_df["打席"].sum(),
         "四死球": _batting_df["四死球"].sum(),
+        "BB%": _batting_df["四死球"].sum() / _batting_df["打席"].sum(),
+        "BB/K": bb_k,
         "犠打": _batting_df["犠打"].sum(),
         "犠飛": _batting_df["犠飛"].sum(),
         "併殺打": _batting_df["併殺打"].sum(),
