@@ -672,6 +672,7 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
         pass
 
     st.write("## 投手成績")
+    result_df = result_df.fillna({"勝率": 0, "防御率": 99.99})
     result_df = result_df.style.background_gradient(cmap=cm, axis=0)
     result_df = result_df.format(pitching_format)
     st.dataframe(result_df)
