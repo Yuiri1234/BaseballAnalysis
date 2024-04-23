@@ -274,7 +274,7 @@ def display_filter_batting_all(df):
         unique_positions = sorted(unique_positions, key=sort_key)
         options = ["すべて"] + [pos for pos in unique_positions]
         position = st.selectbox("守備", options, index=0)
-    return regulation, order, position
+    return regulation, order, position, unique_order, unique_positions
 
 
 def display_filter_batting(df):
@@ -375,7 +375,7 @@ def display_filtered_df(
 
 
 def display_score_data(score_df, team, used_key_num):
-    st.write("## 試合結果")
+    st.write("## スコアデータ")
 
     # 計算
     score_df["game_url"] = score_df["game"].apply(get_teams_url, team=team)
@@ -430,7 +430,7 @@ def display_score_data(score_df, team, used_key_num):
     filtered_score_results = pd.DataFrame(filtered_score_results)
     filtered_score_results.index = ["フィルタ後"]
 
-    # 年度別
+    # 期間別
     unique_years = pd.to_datetime(score_df["game_date"]).dt.year.unique()
     unique_months = np.sort(pd.to_datetime(score_df["game_date"]).dt.month.unique())
 
@@ -465,7 +465,7 @@ def display_score_data(score_df, team, used_key_num):
     filtered_inning_score = pd.DataFrame(filtered_inning_score)
     filtered_inning_score.index = ["平均得点", "平均失点"]
 
-    # 年度別得点
+    # 期間別得点
     inning_point = (
         [calc_inning_data(score_df, type="points")]
         + [
@@ -490,7 +490,7 @@ def display_score_data(score_df, team, used_key_num):
         + [f"{month}月(得点)" for month in unique_months]
     )
 
-    # 年度別失点
+    # 期間別失点
     inning_losts = (
         [calc_inning_data(score_df, type="losts")]
         + [
@@ -518,7 +518,7 @@ def display_score_data(score_df, team, used_key_num):
     # 表示
     _score_df = _score_df.rename(columns=column_name)
     _score_df["試合日"] = _score_df["試合日"].dt.strftime("%Y/%m/%d")
-    st.write("### チーム成績")
+    st.write("### 試合結果")
 
     __score_df = _score_df[display_score_columns]
     gb = GridOptionsBuilder.from_dataframe(__score_df)
@@ -551,12 +551,7 @@ def display_score_data(score_df, team, used_key_num):
     )
     st.dataframe(filtered_score_results)
 
-    score_results = score_results.style.background_gradient(cmap=cm, axis=0)
-    score_results = score_results.format(score_format)
-    st.dataframe(score_results)
-
-    st.write("### イニング別成績")
-    st.write("#### フィルタ後")
+    st.write("#### イニング別成績")
     filtered_inning_score = filtered_inning_score.style.background_gradient(
         cmap=cm, axis=1
     )
@@ -565,7 +560,12 @@ def display_score_data(score_df, team, used_key_num):
     )
     st.dataframe(filtered_inning_score)
 
-    st.write("#### 年度別")
+    st.write("### 期間別")
+    score_results = score_results.style.background_gradient(cmap=cm, axis=0)
+    score_results = score_results.format(score_format)
+    st.dataframe(score_results)
+
+    st.write("#### イニング別成績")
     inning_point = inning_point.style.background_gradient(cmap=cm, axis=1)
     inning_point = inning_point.format({col: "{:.3f}" for col in inning_point.columns})
     st.dataframe(inning_point)
@@ -593,6 +593,7 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
         batting_df,
         on=["game", "game_type", "game_date", "game_day", "game_time"],
     )
+    st.write("## 打撃成績")
 
     # フィルタリング
     (
@@ -602,10 +603,17 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
         selected_option4,
         selected_option5,
     ) = display_filter_options(batting_df)
-    regulation, order, position = display_filter_batting_all(batting_df)
+    (
+        regulation,
+        order,
+        position,
+        unique_order,
+        unique_position,
+    ) = display_filter_batting_all(batting_df)
 
-    # 表示
-    result_df = pd.DataFrame()
+    # 個人成績
+    st.write("### 個人成績")
+    players_df = pd.DataFrame()
     for player, group in batting_df.groupby("選手名"):
         if group["打席"].sum() < regulation:
             continue
@@ -626,21 +634,85 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
             player_df = pd.DataFrame([calc_batting_data(_group)])
             player_df.index = [player]
             player_df["背番号"] = int(player_df["背番号"].values[0])
-            result_df = pd.concat([result_df, player_df])
+            players_df = pd.concat([players_df, player_df])
         except ValueError:
             pass
         except IndexError:
             pass
     try:
         # ソート
-        result_df = result_df.sort_values("背番号")
+        players_df = players_df.sort_values("背番号")
     except KeyError:
         pass
+    players_df = players_df.style.background_gradient(cmap=cm, axis=0)
+    players_df = players_df.format(batting_format)
+    st.dataframe(players_df)
 
-    st.write("## 打撃成績")
-    result_df = result_df.style.background_gradient(cmap=cm, axis=0)
-    result_df = result_df.format(batting_format)
-    st.dataframe(result_df)
+    # チーム成績
+    st.write("### チーム成績")
+    # 期間別
+    unique_years = pd.to_datetime(batting_df["game_date"]).dt.year.unique()
+    unique_months = np.sort(pd.to_datetime(batting_df["game_date"]).dt.month.unique())
+    batting_result = (
+        [calc_batting_data(batting_df)]
+        + [
+            calc_batting_data(
+                display_filtered_df(batting_df, team, selected_option4=str(year))
+            )
+            for year in unique_years
+        ]
+        + [
+            calc_batting_data(
+                display_filtered_df(batting_df, team, selected_option4=str(month))
+            )
+            for month in unique_months
+        ]
+    )
+    batting_result = pd.DataFrame(batting_result)
+    batting_result.index = (
+        ["すべて"]
+        + [f"{year}年" for year in unique_years]
+        + [f"{month}月" for month in unique_months]
+    )
+    st.write("#### 期間別")
+    batting_result = batting_result.drop(["背番号", "試合数"], axis=1)
+    batting_result = batting_result.style.background_gradient(cmap=cm, axis=0)
+    batting_result = batting_result.format(batting_format)
+    st.dataframe(batting_result)
+
+    # 打順別
+    batting_result_order = [
+        calc_batting_data(display_filtered_df(batting_df, team, order=str(order)))
+        for order in unique_order
+        if order in unique_order
+    ]
+    batting_result_order = pd.DataFrame(batting_result_order)
+    batting_result_order.index = unique_order
+
+    st.write("#### 打順別")
+    batting_result_order = batting_result_order.drop(["背番号", "試合数"], axis=1)
+    batting_result_order = batting_result_order.style.background_gradient(
+        cmap=cm, axis=0
+    )
+    batting_result_order = batting_result_order.format(batting_format)
+    st.dataframe(batting_result_order)
+
+    # 守備別
+    batting_result_position = [
+        calc_batting_data(display_filtered_df(batting_df, team, position=position))
+        for position in position_list
+        if position in unique_position
+    ]
+    batting_result_position = pd.DataFrame(batting_result_position)
+    batting_result_position.index = unique_position
+
+    st.write("#### 先発守備位置別")
+    batting_result_position = batting_result_position.drop(["背番号", "試合数"], axis=1)
+    batting_result_position = batting_result_position.style.background_gradient(
+        cmap=cm, axis=0
+    )
+    batting_result_position = batting_result_position.format(batting_format)
+    st.dataframe(batting_result_position)
 
 
 def display_pitching_data(score_df, pitching_df, team, used_key_num):
@@ -662,6 +734,8 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
         on=["game", "game_type", "game_date", "game_day", "game_time"],
     )
 
+    st.write("## 投手成績")
+
     # フィルタリング
     (
         selected_option1,
@@ -671,7 +745,8 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
         selected_option5,
     ) = display_filter_options(pitching_df)
 
-    # 表示
+    # 個人成績
+    st.write("### 個人成績")
     result_df = pd.DataFrame()
     for player, group in pitching_df.groupby("選手名"):
         _group = display_filtered_df(
@@ -699,12 +774,42 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
         result_df = result_df.sort_values("背番号")
     except KeyError:
         pass
-
-    st.write("## 投手成績")
     result_df = result_df.fillna({"勝率": 0, "防御率": 99.99})
     result_df = result_df.style.background_gradient(cmap=cm, axis=0)
     result_df = result_df.format(pitching_format)
     st.dataframe(result_df)
+
+    # チーム成績
+    st.write("### チーム成績")
+    # 期間別
+    unique_years = pd.to_datetime(pitching_df["game_date"]).dt.year.unique()
+    unique_months = np.sort(pd.to_datetime(pitching_df["game_date"]).dt.month.unique())
+    pitching_result = (
+        [calc_pitching_data(pitching_df)]
+        + [
+            calc_pitching_data(
+                display_filtered_df(pitching_df, team, selected_option4=str(year))
+            )
+            for year in unique_years
+        ]
+        + [
+            calc_pitching_data(
+                display_filtered_df(pitching_df, team, selected_option4=str(month))
+            )
+            for month in unique_months
+        ]
+    )
+    pitching_result = pd.DataFrame(pitching_result)
+    pitching_result.index = (
+        ["すべて"]
+        + [f"{year}年" for year in unique_years]
+        + [f"{month}月" for month in unique_months]
+    )
+    st.write("#### 期間別")
+    pitching_result = pitching_result.drop(["背番号", "試合数"], axis=1)
+    pitching_result = pitching_result.style.background_gradient(cmap=cm, axis=0)
+    pitching_result = pitching_result.format(pitching_format)
+    st.dataframe(pitching_result)
 
 
 def display_player_data(
