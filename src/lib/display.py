@@ -209,7 +209,7 @@ def split_inning(inning):
     return pd.Series([int(inning[0]), int(inning[1].split("/")[0])])
 
 
-def display_filter_options(df):
+def display_filter_options(df, used_key_num=0):
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         options = ["すべて", "公式戦", "練習試合"]
@@ -230,32 +230,42 @@ def display_filter_options(df):
             + ["直近5試合", "直近10試合", "その他"]
         )
         selected_option4 = st.selectbox("期間", options, index=0)
+        if selected_option4 == "その他":
+            selected_option4_1, selected_option4_2 = display_filter_calendar(
+                df, used_key_num
+            )
+        else:
+            selected_option4_1, selected_option4_2 = None, None
     with col5:
         unique_oppo_teams = df["oppo_team"].unique()
         options = ["すべて"] + list(unique_oppo_teams)
         selected_option5 = st.selectbox("対戦相手", options, index=0)
+
     return (
         selected_option1,
         selected_option2,
         selected_option3,
         selected_option4,
         selected_option5,
+        selected_option4_1,
+        selected_option4_2,
     )
 
 
-def display_filter_calendar(df, key1="selected_date1", key2="selected_date2"):
+def display_filter_calendar(df, used_key_num):
     col1, col2 = st.columns(2)
     with col1:
         selected_date1 = st.date_input(
-            "期間 (前)", datetime.datetime.now() - datetime.timedelta(days=30), key=key1
+            "期間 (前)",
+            datetime.datetime.now() - datetime.timedelta(days=90),
+            key=f"calendar_{used_key_num}_1",
         )
     with col2:
-        selected_date2 = st.date_input("期間 (後)", datetime.datetime.now(), key=key2)
+        selected_date2 = st.date_input(
+            "期間 (後)", datetime.datetime.now(), key=f"calendar_{used_key_num}_2"
+        )
 
-    return df[
-        (df["game_date"].dt.date >= selected_date1)
-        & (df["game_date"].dt.date <= selected_date2)
-    ]
+    return selected_date1, selected_date2
 
 
 def display_filter_batting_all(df):
@@ -301,7 +311,7 @@ def sort_key(item):
         return len(position_list)
 
 
-def display_filtered_df(
+def filtering_df(
     df,
     team,
     selected_option1="すべて",
@@ -309,7 +319,8 @@ def display_filtered_df(
     selected_option3="すべて",
     selected_option4="すべて",
     selected_option5="すべて",
-    used_key_num=0,
+    selected_option4_1=None,
+    selected_option4_2=None,
     order=None,
     position=None,
 ):
@@ -339,9 +350,9 @@ def display_filtered_df(
     if selected_option4 == "すべて":
         display_df = display_df
     elif selected_option4 == "その他":
-        key1 = f"selected_date_{used_key_num}_1"
-        key2 = f"selected_date_{used_key_num}_2"
-        display_df = display_filter_calendar(display_df, key1, key2)
+        display_df = filtering_calendar(
+            display_df, selected_option4_1, selected_option4_2
+        )
     elif selected_option4 == "直近5試合":
         display_df = display_df.sort_values("game_date", ascending=False).head(5)
     elif selected_option4 == "直近10試合":
@@ -372,6 +383,13 @@ def display_filtered_df(
         display_df = display_df[display_df["守備"] == position]
 
     return display_df
+
+
+def filtering_calendar(df, selected_date1, selected_date2):
+    return df[
+        (df["game_date"].dt.date >= selected_date1)
+        & (df["game_date"].dt.date <= selected_date2)
+    ]
 
 
 def display_score_data(score_df, team, used_key_num):
@@ -410,11 +428,13 @@ def display_score_data(score_df, team, used_key_num):
         selected_option3,
         selected_option4,
         selected_option5,
-    ) = display_filter_options(score_df)
+        selected_option4_1,
+        selected_option4_2,
+    ) = display_filter_options(score_df, used_key_num)
 
     # チーム成績
     # フィルタ後
-    _score_df = display_filtered_df(
+    _score_df = filtering_df(
         score_df,
         team,
         selected_option1,
@@ -422,7 +442,8 @@ def display_score_data(score_df, team, used_key_num):
         selected_option3,
         selected_option4,
         selected_option5,
-        used_key_num,
+        selected_option4_1,
+        selected_option4_2,
     )
     filtered_score_results = [
         calc_score_data(_score_df, team),
@@ -435,16 +456,16 @@ def display_score_data(score_df, team, used_key_num):
     unique_months = np.sort(pd.to_datetime(score_df["game_date"]).dt.month.unique())
 
     score_results = (
-        [calc_score_data(display_filtered_df(score_df, team), team)]
+        [calc_score_data(filtering_df(score_df, team), team)]
         + [
             calc_score_data(
-                display_filtered_df(score_df, team, selected_option4=str(year)), team
+                filtering_df(score_df, team, selected_option4=str(year)), team
             )
             for year in unique_years
         ]
         + [
             calc_score_data(
-                display_filtered_df(score_df, team, selected_option4=str(month)), team
+                filtering_df(score_df, team, selected_option4=str(month)), team
             )
             for month in unique_months
         ]
@@ -470,14 +491,14 @@ def display_score_data(score_df, team, used_key_num):
         [calc_inning_data(score_df, type="points")]
         + [
             calc_inning_data(
-                display_filtered_df(score_df, team, selected_option4=str(year)),
+                filtering_df(score_df, team, selected_option4=str(year)),
                 type="points",
             )
             for year in unique_years
         ]
         + [
             calc_inning_data(
-                display_filtered_df(score_df, team, selected_option4=str(month)),
+                filtering_df(score_df, team, selected_option4=str(month)),
                 type="points",
             )
             for month in unique_months
@@ -495,14 +516,14 @@ def display_score_data(score_df, team, used_key_num):
         [calc_inning_data(score_df, type="losts")]
         + [
             calc_inning_data(
-                display_filtered_df(score_df, team, selected_option4=str(year)),
+                filtering_df(score_df, team, selected_option4=str(year)),
                 type="losts",
             )
             for year in unique_years
         ]
         + [
             calc_inning_data(
-                display_filtered_df(score_df, team, selected_option4=str(month)),
+                filtering_df(score_df, team, selected_option4=str(month)),
                 type="losts",
             )
             for month in unique_months
@@ -602,7 +623,9 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
         selected_option3,
         selected_option4,
         selected_option5,
-    ) = display_filter_options(batting_df)
+        selected_option4_1,
+        selected_option4_2,
+    ) = display_filter_options(batting_df, used_key_num)
     (
         regulation,
         order,
@@ -617,7 +640,7 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
     for player, group in batting_df.groupby("選手名"):
         if group["打席"].sum() < regulation:
             continue
-        _group = display_filtered_df(
+        _group = filtering_df(
             group,
             team,
             selected_option1,
@@ -625,7 +648,8 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
             selected_option3,
             selected_option4,
             selected_option5,
-            used_key_num=f"{used_key_num}_0",
+            selected_option4_1,
+            selected_option4_2,
             order=order,
             position=position,
         )
@@ -657,13 +681,13 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
         [calc_batting_data(batting_df)]
         + [
             calc_batting_data(
-                display_filtered_df(batting_df, team, selected_option4=str(year))
+                filtering_df(batting_df, team, selected_option4=str(year))
             )
             for year in unique_years
         ]
         + [
             calc_batting_data(
-                display_filtered_df(batting_df, team, selected_option4=str(month))
+                filtering_df(batting_df, team, selected_option4=str(month))
             )
             for month in unique_months
         ]
@@ -682,7 +706,7 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
 
     # 打順別
     batting_result_order = [
-        calc_batting_data(display_filtered_df(batting_df, team, order=str(order)))
+        calc_batting_data(filtering_df(batting_df, team, order=str(order)))
         for order in unique_order
         if order in unique_order
     ]
@@ -699,7 +723,7 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
 
     # 守備別
     batting_result_position = [
-        calc_batting_data(display_filtered_df(batting_df, team, position=position))
+        calc_batting_data(filtering_df(batting_df, team, position=position))
         for position in position_list
         if position in unique_position
     ]
@@ -743,13 +767,15 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
         selected_option3,
         selected_option4,
         selected_option5,
-    ) = display_filter_options(pitching_df)
+        selected_option4_1,
+        selected_option4_2,
+    ) = display_filter_options(pitching_df, used_key_num)
 
     # 個人成績
     st.write("### 個人成績")
     result_df = pd.DataFrame()
     for player, group in pitching_df.groupby("選手名"):
-        _group = display_filtered_df(
+        _group = filtering_df(
             group,
             team,
             selected_option1,
@@ -757,7 +783,8 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
             selected_option3,
             selected_option4,
             selected_option5,
-            used_key_num=f"{used_key_num}_0",
+            selected_option4_1,
+            selected_option4_2,
         )
         try:
             _group = _group.rename(columns=column_name)
@@ -788,13 +815,13 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
         [calc_pitching_data(pitching_df)]
         + [
             calc_pitching_data(
-                display_filtered_df(pitching_df, team, selected_option4=str(year))
+                filtering_df(pitching_df, team, selected_option4=str(year))
             )
             for year in unique_years
         ]
         + [
             calc_pitching_data(
-                display_filtered_df(pitching_df, team, selected_option4=str(month))
+                filtering_df(pitching_df, team, selected_option4=str(month))
             )
             for month in unique_months
         ]
@@ -847,12 +874,14 @@ def display_player_data(
         selected_option3,
         selected_option4,
         selected_option5,
-    ) = display_filter_options(batting_df)
+        selected_option4_1,
+        selected_option4_2,
+    ) = display_filter_options(batting_df, used_key_num)
     order, position, unique_order, unique_position = display_filter_batting(batting_df)
 
     unique_years = pd.to_datetime(batting_df["game_date"]).dt.year.unique()
     unique_months = np.sort(pd.to_datetime(batting_df["game_date"]).dt.month.unique())
-    _batting_df = display_filtered_df(
+    _batting_df = filtering_df(
         batting_df,
         team,
         selected_option1,
@@ -860,7 +889,8 @@ def display_player_data(
         selected_option3,
         selected_option4,
         selected_option5,
-        used_key_num=f"{used_key_num}_0",
+        selected_option4_1,
+        selected_option4_2,
         order=order,
         position=position,
     )
@@ -916,13 +946,13 @@ def display_player_data(
         [calc_batting_data(batting_df)]
         + [
             calc_batting_data(
-                display_filtered_df(batting_df, team, selected_option4=str(year))
+                filtering_df(batting_df, team, selected_option4=str(year))
             )
             for year in unique_years
         ]
         + [
             calc_batting_data(
-                display_filtered_df(batting_df, team, selected_option4=str(month))
+                filtering_df(batting_df, team, selected_option4=str(month))
             )
             for month in unique_months
         ]
@@ -941,7 +971,7 @@ def display_player_data(
 
     # 打順別
     batting_result_order = [
-        calc_batting_data(display_filtered_df(batting_df, team, order=str(order)))
+        calc_batting_data(filtering_df(batting_df, team, order=str(order)))
         for order in unique_order
         if order in unique_order
     ]
@@ -957,7 +987,7 @@ def display_player_data(
 
     # 守備別
     batting_result_position = [
-        calc_batting_data(display_filtered_df(batting_df, team, position=position))
+        calc_batting_data(filtering_df(batting_df, team, position=position))
         for position in position_list
         if position in unique_position
     ]
@@ -975,7 +1005,7 @@ def display_player_data(
     st.write("### 投手成績")
     unique_years = pd.to_datetime(pitching_df["game_date"]).dt.year.unique()
     unique_months = np.sort(pd.to_datetime(pitching_df["game_date"]).dt.month.unique())
-    _pitching_df = display_filtered_df(
+    _pitching_df = filtering_df(
         pitching_df,
         team,
         selected_option1,
@@ -983,7 +1013,8 @@ def display_player_data(
         selected_option3,
         selected_option4,
         selected_option5,
-        used_key_num=f"{used_key_num}_1",
+        selected_option4_1,
+        selected_option4_2,
     )
 
     try:
@@ -1042,13 +1073,13 @@ def display_player_data(
             ]
             + [
                 calc_pitching_data(
-                    display_filtered_df(pitching_df, team, selected_option4=str(year))
+                    filtering_df(pitching_df, team, selected_option4=str(year))
                 )
                 for year in unique_years
             ]
             + [
                 calc_pitching_data(
-                    display_filtered_df(pitching_df, team, selected_option4=str(month))
+                    filtering_df(pitching_df, team, selected_option4=str(month))
                 )
                 for month in unique_months
             ]
