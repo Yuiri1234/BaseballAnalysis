@@ -152,6 +152,31 @@ display_pitching_columns = [
     "登板順",
 ]
 
+low_better_score = [
+    "負け",
+    "合計失点",
+    "1試合平均失点",
+]
+
+low_better_batting = [
+    "三振",
+    "K%",
+    "併殺打",
+    "失策",
+]
+
+low_better_pitching = [
+    "負",
+    "防御率",
+    "失点",
+    "自責点",
+    "被安打",
+    "被本塁打",
+    "与四死球",
+    "ボーク",
+    "暴投",
+]
+
 position_list = [
     "投",
     "捕",
