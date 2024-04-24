@@ -467,7 +467,7 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
             player_df.index = [player]
             player_df["背番号"] = int(player_df["背番号"].values[0])
             players_df = pd.concat([players_df, player_df])
-        except ValueError:
+        except Exception:
             pass
         except IndexError:
             pass
@@ -475,7 +475,7 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
         # ソート
         players_df = players_df.sort_values("背番号")
     except KeyError:
-        pass
+        players_df = pd.DataFrame(columns=pd.DataFrame([func(df)]).columns)
 
     if type == "batting":
         players_df = players_df.style.background_gradient(cmap=cm1, axis=0)
