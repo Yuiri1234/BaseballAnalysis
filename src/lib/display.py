@@ -19,6 +19,9 @@ from lib.info import (
     display_batting_columns,
     display_pitching_columns,
     display_score_columns,
+    low_better_batting,
+    low_better_pitching,
+    low_better_score,
     pitching_format,
     position_list,
     score_format,
@@ -27,7 +30,8 @@ from lib.info import (
 from st_aggrid import AgGrid, JsCode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 
-cm = sns.light_palette("seagreen", as_cmap=True)
+cm1 = sns.color_palette("light:r", as_cmap=True)
+cm2 = sns.color_palette("light:b", as_cmap=True)
 
 
 def calc_inning_points_mean(df):
@@ -474,11 +478,17 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
         pass
 
     if type == "batting":
-        players_df = players_df.style.background_gradient(cmap=cm, axis=0)
+        players_df = players_df.style.background_gradient(cmap=cm1, axis=0)
+        players_df = players_df.background_gradient(
+            cmap=cm2, axis=0, subset=low_better_batting
+        )
         players_df = players_df.format(batting_format)
     elif type == "pitching":
         players_df = players_df.fillna({"勝率": 0, "防御率": 99.99})
-        players_df = players_df.style.background_gradient(cmap=cm, axis=0)
+        players_df = players_df.style.background_gradient(cmap=cm1, axis=0)
+        players_df = players_df.background_gradient(
+            cmap=cm2, axis=0, subset=low_better_pitching
+        )
         players_df = players_df.format(pitching_format)
 
     st.dataframe(players_df)
@@ -602,8 +612,12 @@ def display_score_data(score_df, team, used_key_num):
     st.dataframe(filtered_score_results)
 
     st.write("#### イニング別成績")
+    filtered_inning_score = filtered_inning_score.T
     filtered_inning_score = filtered_inning_score.style.background_gradient(
-        cmap=cm, axis=1
+        cmap=cm1, axis=0
+    )
+    filtered_inning_score = filtered_inning_score.background_gradient(
+        cmap=cm2, axis=0, subset=["平均失点"]
     )
     filtered_inning_score = filtered_inning_score.format(
         {col: "{:.3f}" for col in filtered_inning_score.columns}
@@ -611,18 +625,21 @@ def display_score_data(score_df, team, used_key_num):
     st.dataframe(filtered_inning_score)
 
     st.write("### 期間別")
-    score_results = score_results.style.background_gradient(cmap=cm, axis=0)
+    score_results = score_results.style.background_gradient(cmap=cm1, axis=0)
+    score_results = score_results.background_gradient(
+        cmap=cm2, axis=0, subset=low_better_score
+    )
     score_results = score_results.format(score_format)
     st.dataframe(score_results)
 
     st.write("#### イニング別成績")
     st.write("##### 得点")
-    inning_point = inning_point.style.background_gradient(cmap=cm, axis=1)
+    inning_point = inning_point.style.background_gradient(cmap=cm1, axis=1)
     inning_point = inning_point.format({col: "{:.3f}" for col in inning_point.columns})
     st.dataframe(inning_point)
 
     st.write("##### 失点")
-    inning_losts = inning_losts.style.background_gradient(cmap=cm, axis=1)
+    inning_losts = inning_losts.style.background_gradient(cmap=cm2, axis=1)
     inning_losts = inning_losts.format({col: "{:.3f}" for col in inning_losts.columns})
     st.dataframe(inning_losts)
 
@@ -673,7 +690,10 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
 
     st.write("#### 期間別")
     batting_result = batting_result.drop(["背番号", "試合数"], axis=1)
-    batting_result = batting_result.style.background_gradient(cmap=cm, axis=0)
+    batting_result = batting_result.style.background_gradient(cmap=cm1, axis=0)
+    batting_result = batting_result.background_gradient(
+        cmap=cm2, axis=0, subset=low_better_batting
+    )
     batting_result = batting_result.format(batting_format)
     st.dataframe(batting_result)
 
@@ -685,7 +705,10 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
     st.write("#### 打順別")
     batting_result_order = batting_result_order.drop(["背番号", "試合数"], axis=1)
     batting_result_order = batting_result_order.style.background_gradient(
-        cmap=cm, axis=0
+        cmap=cm1, axis=0
+    )
+    batting_result_order = batting_result_order.background_gradient(
+        cmap=cm2, axis=0, subset=low_better_batting
     )
     batting_result_order = batting_result_order.format(batting_format)
     st.dataframe(batting_result_order)
@@ -702,7 +725,10 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
     st.write("#### 先発守備位置別")
     batting_result_position = batting_result_position.drop(["背番号", "試合数"], axis=1)
     batting_result_position = batting_result_position.style.background_gradient(
-        cmap=cm, axis=0
+        cmap=cm1, axis=0
+    )
+    batting_result_position = batting_result_position.background_gradient(
+        cmap=cm2, axis=0, subset=low_better_batting
     )
     batting_result_position = batting_result_position.format(batting_format)
     st.dataframe(batting_result_position)
@@ -747,7 +773,10 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
     )
     st.write("#### 期間別")
     pitching_result = pitching_result.drop(["背番号", "試合数"], axis=1)
-    pitching_result = pitching_result.style.background_gradient(cmap=cm, axis=0)
+    pitching_result = pitching_result.style.background_gradient(cmap=cm1, axis=0)
+    pitching_result = pitching_result.background_gradient(
+        cmap=cm2, axis=0, subset=low_better_pitching
+    )
     pitching_result = pitching_result.format(pitching_format)
     st.dataframe(pitching_result)
 
@@ -821,7 +850,10 @@ def display_player_data(
     )
 
     st.write("#### 期間別")
-    batting_result = batting_result.style.background_gradient(cmap=cm, axis=0)
+    batting_result = batting_result.style.background_gradient(cmap=cm1, axis=0)
+    batting_result = batting_result.background_gradient(
+        cmap=cm2, axis=0, subset=low_better_batting
+    )
     batting_result = batting_result.format(batting_format)
     st.dataframe(batting_result)
 
@@ -832,7 +864,10 @@ def display_player_data(
 
     st.write("#### 打順別")
     batting_result_order = batting_result_order.style.background_gradient(
-        cmap=cm, axis=0
+        cmap=cm1, axis=0
+    )
+    batting_result_order = batting_result_order.background_gradient(
+        cmap=cm2, axis=0, subset=low_better_batting
     )
     batting_result_order = batting_result_order.format(batting_format)
     st.dataframe(batting_result_order)
@@ -848,7 +883,10 @@ def display_player_data(
 
     st.write("#### 先発守備位置別")
     batting_result_position = batting_result_position.style.background_gradient(
-        cmap=cm, axis=0
+        cmap=cm1, axis=0
+    )
+    batting_result_position = batting_result_position.background_gradient(
+        cmap=cm2, axis=0, subset=low_better_batting
     )
     batting_result_position = batting_result_position.format(batting_format)
     st.dataframe(batting_result_position)
@@ -893,6 +931,9 @@ def display_player_data(
 
         st.write("#### 期間別")
         pitching_result = pitching_result.fillna({"勝率": 0, "防御率": 99.99})
-        pitching_result = pitching_result.style.background_gradient(cmap=cm, axis=0)
+        pitching_result = pitching_result.style.background_gradient(cmap=cm1, axis=0)
+        pitching_result = pitching_result.background_gradient(
+            cmap=cm2, axis=0, subset=low_better_pitching
+        )
         pitching_result = pitching_result.format(pitching_format)
         st.dataframe(pitching_result)
