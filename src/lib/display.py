@@ -1,4 +1,5 @@
 import datetime
+import math
 
 import numpy as np
 import pandas as pd
@@ -30,8 +31,8 @@ from lib.info import (
 from st_aggrid import AgGrid, JsCode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 
-cm1 = sns.color_palette("light:r", as_cmap=True)
-cm2 = sns.color_palette("light:b", as_cmap=True)
+cm1 = sns.color_palette("coolwarm", as_cmap=True)
+cm2 = sns.color_palette("coolwarm_r", as_cmap=True)
 
 
 def calc_inning_points_mean(df):
@@ -128,6 +129,78 @@ def calc_batting_data(_batting_df):
     except ZeroDivisionError:
         woba_basic = 99.999
 
+    try:
+        babib = (_batting_df["安打"].sum() - _batting_df["本"].sum()) / (
+            _batting_df["打数"].sum()
+            + _batting_df["犠飛"].sum()
+            - _batting_df["三振"].sum()
+            - _batting_df["本"].sum()
+        )
+    except ZeroDivisionError:
+        babib = 0
+
+    stolen_bases = _batting_df["盗塁"].sum()
+    # 盗塁成功率を計算
+    success_rate = (
+        ((stolen_bases + 3) / (stolen_bases + 7) - 0.4) * 20 if stolen_bases != 0 else 0
+    )
+    # 盗塁企図を計算
+    try:
+        attempt = (
+            math.sqrt(stolen_bases / (one_base_hit + _batting_df["四死球"].sum())) / 0.07
+            if stolen_bases != 0
+            else 0
+        )
+    except ZeroDivisionError:
+        attempt = 0
+    # 三塁打割合を計算
+    try:
+        triples_rate = (
+            _batting_df["三塁打"].sum()
+            / (
+                _batting_df["打数"].sum()
+                - _batting_df["本"].sum()
+                - _batting_df["三振"].sum()
+            )
+            / 0.02
+            * 10
+        )
+    except ZeroDivisionError:
+        triples_rate = 0
+    # 得点割合を計算
+    try:
+        runs_rate = (
+            (_batting_df["得点"].sum() - _batting_df["本"].sum())
+            / (
+                _batting_df["安打"].sum()
+                + _batting_df["四死球"].sum()
+                - _batting_df["本"].sum()
+            )
+            - 0.1
+        ) / 0.04
+    except ZeroDivisionError:
+        runs_rate = 0
+
+    # 各要素が0以下の場合は0に、10以上の場合は10に変換
+    attempt = max(0, min(attempt, 10))
+    success_rate = max(0, min(success_rate, 10))
+    triples_rate = max(0, min(triples_rate, 10))
+    runs_rate = max(0, min(runs_rate, 10))
+
+    # Speed Scoreを計算
+    speed_score = (attempt + success_rate + triples_rate + runs_rate) / 4
+
+    # SecAを計算
+    try:
+        seca = (
+            total_bases
+            - _batting_df["安打"].sum()
+            + _batting_df["四死球"].sum()
+            + stolen_bases
+        ) / _batting_df["打数"].sum()
+    except ZeroDivisionError:
+        seca = 0
+
     return {
         "背番号": _batting_df["背番号"].values[0],
         "試合数": _batting_df.shape[0],
@@ -147,12 +220,15 @@ def calc_batting_data(_batting_df):
         "OPS": on_base_percentage + slugging_percentage,
         "IsoP": slugging_percentage - average,  # 純長打率
         "IsoD": on_base_percentage - average,
+        "BABIP": babib,
         "wOBA": woba_basic,
+        "SecA": seca,
         "三振": _batting_df["三振"].sum(),
         "K%": _batting_df["三振"].sum() / _batting_df["打席"].sum(),
         "四死球": _batting_df["四死球"].sum(),
         "BB%": _batting_df["四死球"].sum() / _batting_df["打席"].sum(),
         "BB/K": bb_k,
+        "Spd": speed_score,
         "犠打": _batting_df["犠打"].sum(),
         "犠飛": _batting_df["犠飛"].sum(),
         "併殺打": _batting_df["併殺打"].sum(),
@@ -215,7 +291,7 @@ def split_inning(inning):
 
 
 def display_filter_options(df, used_key_num=0):
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
         options = ["すべて", "公式戦", "練習試合"]
         selected_option1 = st.selectbox("試合種別", options, index=0)
@@ -226,6 +302,19 @@ def display_filter_options(df, used_key_num=0):
         options = ["すべて", "勝ち", "負け", "引き分け"]
         selected_option3 = st.selectbox("結果", options, index=0)
     with col4:
+        options = ["すべて", "以上", "以下"]
+        selected_option4 = st.selectbox("点差", options, index=0)
+        if selected_option4 == "以上":
+            selected_option4_num = st.number_input(
+                "点差(以上)", 0, 100, 0, key=f"score_{used_key_num}_1"
+            )
+        elif selected_option4 == "以下":
+            selected_option4_num = st.number_input(
+                "点差(以下)", 0, 100, 100, key=f"score_{used_key_num}_2"
+            )
+        else:
+            selected_option4_num = None
+    with col5:
         unique_years = pd.to_datetime(df["game_date"]).dt.year.unique()
         unique_months = np.sort(pd.to_datetime(df["game_date"]).dt.month.unique())
         options = (
@@ -234,17 +323,17 @@ def display_filter_options(df, used_key_num=0):
             + [f"{month}月" for month in unique_months]
             + ["直近5試合", "直近10試合", "その他"]
         )
-        selected_option4 = st.selectbox("期間", options, index=0)
-        if selected_option4 == "その他":
-            selected_option4_1, selected_option4_2 = display_filter_calendar(
+        selected_option5 = st.selectbox("期間", options, index=0)
+        if selected_option5 == "その他":
+            selected_option5_1, selected_option5_2 = display_filter_calendar(
                 df, used_key_num
             )
         else:
-            selected_option4_1, selected_option4_2 = None, None
-    with col5:
+            selected_option5_1, selected_option5_2 = None, None
+    with col6:
         unique_oppo_teams = df["oppo_team"].unique()
         options = ["すべて"] + list(unique_oppo_teams)
-        selected_option5 = st.selectbox("対戦相手", options, index=0)
+        selected_option6 = st.selectbox("対戦相手", options, index=0)
 
     return {
         "selected_option1": selected_option1,
@@ -252,8 +341,10 @@ def display_filter_options(df, used_key_num=0):
         "selected_option3": selected_option3,
         "selected_option4": selected_option4,
         "selected_option5": selected_option5,
-        "selected_option4_1": selected_option4_1,
-        "selected_option4_2": selected_option4_2,
+        "selected_option6": selected_option6,
+        "selected_option4_num": selected_option4_num,
+        "selected_option5_1": selected_option5_1,
+        "selected_option5_2": selected_option5_2,
     }
 
 
@@ -324,8 +415,10 @@ def filtering_df(
     selected_option3="すべて",
     selected_option4="すべて",
     selected_option5="すべて",
-    selected_option4_1=None,
-    selected_option4_2=None,
+    selected_option6="すべて",
+    selected_option4_num=None,
+    selected_option5_1=None,
+    selected_option5_2=None,
     order=None,
     position=None,
 ):
@@ -354,27 +447,34 @@ def filtering_df(
 
     if selected_option4 == "すべて":
         display_df = display_df
-    elif selected_option4 == "その他":
-        display_df = filtering_calendar(
-            display_df, selected_option4_1, selected_option4_2
-        )
-    elif selected_option4 == "直近5試合":
-        display_df = display_df.sort_values("game_date", ascending=False).head(5)
-    elif selected_option4 == "直近10試合":
-        display_df = display_df.sort_values("game_date", ascending=False).head(10)
-    else:
-        selected_option4 = int(selected_option4.replace("年", "").replace("月", ""))
-        if int(selected_option4) > 2000:
-            display_df = display_df[display_df["game_date"].dt.year == selected_option4]
-        elif int(selected_option4) >= 1 and int(selected_option4) <= 12:
-            display_df = display_df[
-                display_df["game_date"].dt.month == selected_option4
-            ]
+    elif selected_option4 == "以上":
+        display_df = display_df[display_df["points_diff"].abs() >= selected_option4_num]
+    elif selected_option4 == "以下":
+        display_df = display_df[display_df["points_diff"].abs() <= selected_option4_num]
 
     if selected_option5 == "すべて":
         display_df = display_df
+    elif selected_option5 == "その他":
+        display_df = filtering_calendar(
+            display_df, selected_option5_1, selected_option5_2
+        )
+    elif selected_option5 == "直近5試合":
+        display_df = display_df.sort_values("game_date", ascending=False).head(5)
+    elif selected_option5 == "直近10試合":
+        display_df = display_df.sort_values("game_date", ascending=False).head(10)
     else:
-        display_df = display_df[display_df["oppo_team"] == selected_option5]
+        selected_option5 = int(selected_option5.replace("年", "").replace("月", ""))
+        if int(selected_option5) > 2000:
+            display_df = display_df[display_df["game_date"].dt.year == selected_option5]
+        elif int(selected_option5) >= 1 and int(selected_option5) <= 12:
+            display_df = display_df[
+                display_df["game_date"].dt.month == selected_option5
+            ]
+
+    if selected_option6 == "すべて":
+        display_df = display_df
+    else:
+        display_df = display_df[display_df["oppo_team"] == selected_option6]
 
     if order == "すべて" or order is None:
         display_df = display_df
@@ -404,7 +504,7 @@ def display_conditional_data(
     team=None,
     unique_years=None,
     unique_months=None,
-    unique_order=None,
+    unique_order=None,  # 使用していない
     unique_positions=None,
 ):
     if conditional_type == "term":
@@ -412,11 +512,11 @@ def display_conditional_data(
         term_results = (
             [func(filtering_df(df, team))]
             + [
-                func(filtering_df(df, team, selected_option4=str(year)))
+                func(filtering_df(df, team, selected_option5=str(year)))
                 for year in unique_years
             ]
             + [
-                func(filtering_df(df, team, selected_option4=str(month)))
+                func(filtering_df(df, team, selected_option5=str(month)))
                 for month in unique_months
             ]
         )
@@ -430,10 +530,10 @@ def display_conditional_data(
     elif conditional_type == "order":
         # 打順別
         order_results = [
-            func(filtering_df(df, team, order=str(order))) for order in unique_order
+            func(filtering_df(df, team, order=str(order))) for order in range(1, 10)
         ]
         order_results = pd.DataFrame(order_results)
-        order_results.index = unique_order
+        order_results.index = range(1, 10)
         return order_results
     elif conditional_type == "position":
         # 守備別
@@ -450,6 +550,10 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
     st.write("### 個人成績")
     players_df = pd.DataFrame()
     for player, group in df.groupby("選手名"):
+        # 通算規定打席数
+        if "regulation" in selected_options:
+            if group.shape[0] < selected_options["regulation"]:
+                continue
         _group = filtering_df(
             group,
             team,
@@ -458,8 +562,10 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
             selected_options["selected_option3"],
             selected_options["selected_option4"],
             selected_options["selected_option5"],
-            selected_options["selected_option4_1"],
-            selected_options["selected_option4_2"],
+            selected_options["selected_option6"],
+            selected_options["selected_option4_num"],
+            selected_options["selected_option5_1"],
+            selected_options["selected_option5_2"],
         )
         try:
             _group = _group.rename(columns=column_name)
@@ -571,8 +677,10 @@ def display_score_data(score_df, team, used_key_num):
         selected_options["selected_option3"],
         selected_options["selected_option4"],
         selected_options["selected_option5"],
-        selected_options["selected_option4_1"],
-        selected_options["selected_option4_2"],
+        selected_options["selected_option6"],
+        selected_options["selected_option4_num"],
+        selected_options["selected_option5_1"],
+        selected_options["selected_option5_2"],
     )
     filtered_score_results = [
         calc_score_data(_score_df),
@@ -654,6 +762,9 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
     score_df["result"] = score_df.apply(
         lambda row: win_or_lose(row, team_dict[team]), axis=1
     )
+    score_df["points_diff"] = score_df.apply(
+        lambda row: calc_points_diff(row, team_dict[team]), axis=1
+    )
 
     batting_df["game_date"] = pd.to_datetime(batting_df["game_date"])
 
@@ -673,6 +784,9 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
         unique_order,
         unique_position,
     ) = display_filter_batting_all(batting_df)
+    selected_options["regulation"] = regulation
+    selected_options["order"] = order
+    selected_options["position"] = position
 
     # 個人成績
     display_groupby_player(
@@ -744,6 +858,9 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
     score_df["result"] = score_df.apply(
         lambda row: win_or_lose(row, team_dict[team]), axis=1
     )
+    score_df["points_diff"] = score_df.apply(
+        lambda row: calc_points_diff(row, team_dict[team]), axis=1
+    )
 
     pitching_df["game_date"] = pd.to_datetime(pitching_df["game_date"])
 
@@ -797,6 +914,9 @@ def display_player_data(
     score_df["result"] = score_df.apply(
         lambda row: win_or_lose(row, team_dict[team]), axis=1
     )
+    score_df["points_diff"] = score_df.apply(
+        lambda row: calc_points_diff(row, team_dict[team]), axis=1
+    )
 
     batting_df["game_date"] = pd.to_datetime(batting_df["game_date"])
     pitching_df["game_date"] = pd.to_datetime(pitching_df["game_date"])
@@ -823,8 +943,10 @@ def display_player_data(
         selected_options["selected_option3"],
         selected_options["selected_option4"],
         selected_options["selected_option5"],
-        selected_options["selected_option4_1"],
-        selected_options["selected_option4_2"],
+        selected_options["selected_option6"],
+        selected_options["selected_option4_num"],
+        selected_options["selected_option5_1"],
+        selected_options["selected_option5_2"],
         order=order,
         position=position,
     )
@@ -903,8 +1025,10 @@ def display_player_data(
         selected_options["selected_option3"],
         selected_options["selected_option4"],
         selected_options["selected_option5"],
-        selected_options["selected_option4_1"],
-        selected_options["selected_option4_2"],
+        selected_options["selected_option6"],
+        selected_options["selected_option4_num"],
+        selected_options["selected_option5_1"],
+        selected_options["selected_option5_2"],
     )
 
     try:
@@ -937,3 +1061,129 @@ def display_player_data(
         )
         pitching_result = pitching_result.format(pitching_format)
         st.dataframe(pitching_result)
+
+
+def display_sabermetrics():
+    st.write("## セイバーメトリクス")
+    st.write("### 打撃")
+    st.write("#### 打率")
+    st.latex(
+        r"""
+    \text{打率} = \frac{\text{安打数}}{\text{打数}}
+    """
+    )
+
+    st.write("#### 出塁率")
+    st.latex(
+        r"""
+    \text{出塁率} = \frac{\text{安打数} + \text{四死球数}}{\text{打数} + \text{四死球数} + \text{犠飛数}}
+    """
+    )
+
+    st.write("#### 長打率")
+    st.latex(
+        r"""
+    \text{長打率} = \frac{\text{塁打数}}{\text{打数}}
+    """
+    )
+
+    st.write("#### OPS")
+    st.latex(
+        r"""
+    \text{OPS} = \text{出塁率} + \text{長打率}
+    """
+    )
+
+    st.write("#### IsoP")
+    st.latex(
+        r"""
+    \text{IsoP} = \text{長打率} - \text{打率}
+    """
+    )
+
+    st.write("#### IsoD")
+    st.latex(
+        r"""
+    \text{IsoD} = \text{出塁率} - \text{打率}
+    """
+    )
+
+    st.write("#### BABIP")
+    st.latex(
+        r"""
+        \text{BABIP} = \frac{\text{安打数} - \text{本塁打数}}
+                        {\text{打数} - \text{三振数} - \text{本塁打数} + \text{犠飛数}}
+        """
+    )
+
+    st.write("#### wOBA")
+    st.latex(
+        r"""
+        \text{wOBA} = \frac{0.7 \times \text{四死球数} + 0.9 \times (\text{単打数} + \text{敵失})
+        + 1.3 \times (\text{二塁打数} + \text{三塁打数}) + 2 \times \text{本塁打数}}
+        {\text{打席} + \text{犠打数}}
+        """
+    )
+
+    st.write("#### SecA")
+    st.latex(
+        r"""
+    \text{SecA} = \frac{\text{総塁打数} - \text{安打数} + \text{四死球数} + \text{盗塁数}}{\text{打数}}
+    """
+    )
+
+    st.write("#### K%")
+    st.latex(
+        r"""
+    \text{K\%} = \frac{\text{三振数}}{\text{打席数}}
+    """
+    )
+
+    st.write("#### BB%")
+    st.latex(
+        r"""
+    \text{BB\%} = \frac{\text{四死球数}}{\text{打席数}}
+    """
+    )
+
+    st.write("#### BB/K")
+    st.latex(
+        r"""
+    \text{BB/K} = \frac{\text{四死球数}}{\text{三振数}}
+    """
+    )
+
+    st.write("#### Spd")
+    st.latex(
+        r"""
+    \text{Spd} = \frac{(A + B + C + D)}{4}
+    """
+    )
+    st.latex(
+        r"""
+    A = 20 \times (\frac{\text{盗塁数} + 3}{\text{盗塁数} + 7} - 0.4)
+    """
+    )
+    st.latex(
+        r"""
+    B = \frac{1}{0.07} \times \sqrt{\frac{\text{盗塁数}}{\text{単打数} + \text{四死球数}}}
+    """
+    )
+    st.latex(
+        r"""
+    C = 500 \times \frac{\text{三塁打数}}{\text{打数} - \text{本数} - \text{三振数}}
+    """
+    )
+    st.latex(
+        r"""
+    D = 25 \times (\frac{\text{得点} - \text{本数}}{\text{安打数} + \text{四死球数} - \text{本数}} - 0.1)
+    """
+    )
+
+    st.write("### 投手")
+    st.write("#### 防御率")
+    st.latex(
+        r"""
+    \text{防御率} = \frac{7 \times \text{自責点}}{\text{投球回}}
+    """
+    )

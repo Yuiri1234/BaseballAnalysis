@@ -4,6 +4,7 @@ from lib.display import (
     display_batting_data,
     display_pitching_data,
     display_player_data,
+    display_sabermetrics,
     display_score_data,
 )
 
@@ -25,7 +26,7 @@ def main():
     st.title("分析アプリ")
 
     st.sidebar.title("メニュー")
-    selected_type = st.sidebar.radio("表示するデータ", ["スコア", "打撃成績", "投手成績", "個人成績"])
+    selected_type = st.sidebar.radio("表示するデータ", ["スコア", "打撃成績", "投手成績", "個人成績", "指標説明"])
 
     if selected_type == "スコア":
         display_score_data(score_df, team, used_key_num=0)
@@ -54,6 +55,8 @@ def main():
             player_name,
             used_key_num=3,
         )
+    elif selected_type == "指標説明":
+        display_sabermetrics()
 
 
 if __name__ == "__main__":
