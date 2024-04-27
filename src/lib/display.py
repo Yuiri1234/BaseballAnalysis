@@ -30,8 +30,8 @@ from lib.info import (
 from st_aggrid import AgGrid, JsCode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 
-cm1 = sns.color_palette("light:r", as_cmap=True)
-cm2 = sns.color_palette("light:b", as_cmap=True)
+cm1 = sns.color_palette("coolwarm", as_cmap=True)
+cm2 = sns.color_palette("coolwarm_r", as_cmap=True)
 
 
 def calc_inning_points_mean(df):
@@ -215,7 +215,7 @@ def split_inning(inning):
 
 
 def display_filter_options(df, used_key_num=0):
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
         options = ["すべて", "公式戦", "練習試合"]
         selected_option1 = st.selectbox("試合種別", options, index=0)
@@ -226,6 +226,19 @@ def display_filter_options(df, used_key_num=0):
         options = ["すべて", "勝ち", "負け", "引き分け"]
         selected_option3 = st.selectbox("結果", options, index=0)
     with col4:
+        options = ["すべて", "以上", "以下"]
+        selected_option4 = st.selectbox("点差", options, index=0)
+        if selected_option4 == "以上":
+            selected_option4_num = st.number_input(
+                "点差(以上)", 0, 100, 0, key=f"score_{used_key_num}_1"
+            )
+        elif selected_option4 == "以下":
+            selected_option4_num = st.number_input(
+                "点差(以下)", 0, 100, 100, key=f"score_{used_key_num}_2"
+            )
+        else:
+            selected_option4_num = None
+    with col5:
         unique_years = pd.to_datetime(df["game_date"]).dt.year.unique()
         unique_months = np.sort(pd.to_datetime(df["game_date"]).dt.month.unique())
         options = (
@@ -234,17 +247,17 @@ def display_filter_options(df, used_key_num=0):
             + [f"{month}月" for month in unique_months]
             + ["直近5試合", "直近10試合", "その他"]
         )
-        selected_option4 = st.selectbox("期間", options, index=0)
-        if selected_option4 == "その他":
-            selected_option4_1, selected_option4_2 = display_filter_calendar(
+        selected_option5 = st.selectbox("期間", options, index=0)
+        if selected_option5 == "その他":
+            selected_option5_1, selected_option5_2 = display_filter_calendar(
                 df, used_key_num
             )
         else:
-            selected_option4_1, selected_option4_2 = None, None
-    with col5:
+            selected_option5_1, selected_option5_2 = None, None
+    with col6:
         unique_oppo_teams = df["oppo_team"].unique()
         options = ["すべて"] + list(unique_oppo_teams)
-        selected_option5 = st.selectbox("対戦相手", options, index=0)
+        selected_option6 = st.selectbox("対戦相手", options, index=0)
 
     return {
         "selected_option1": selected_option1,
@@ -252,8 +265,10 @@ def display_filter_options(df, used_key_num=0):
         "selected_option3": selected_option3,
         "selected_option4": selected_option4,
         "selected_option5": selected_option5,
-        "selected_option4_1": selected_option4_1,
-        "selected_option4_2": selected_option4_2,
+        "selected_option6": selected_option6,
+        "selected_option4_num": selected_option4_num,
+        "selected_option5_1": selected_option5_1,
+        "selected_option5_2": selected_option5_2,
     }
 
 
@@ -324,8 +339,10 @@ def filtering_df(
     selected_option3="すべて",
     selected_option4="すべて",
     selected_option5="すべて",
-    selected_option4_1=None,
-    selected_option4_2=None,
+    selected_option6="すべて",
+    selected_option4_num=None,
+    selected_option5_1=None,
+    selected_option5_2=None,
     order=None,
     position=None,
 ):
@@ -354,27 +371,34 @@ def filtering_df(
 
     if selected_option4 == "すべて":
         display_df = display_df
-    elif selected_option4 == "その他":
-        display_df = filtering_calendar(
-            display_df, selected_option4_1, selected_option4_2
-        )
-    elif selected_option4 == "直近5試合":
-        display_df = display_df.sort_values("game_date", ascending=False).head(5)
-    elif selected_option4 == "直近10試合":
-        display_df = display_df.sort_values("game_date", ascending=False).head(10)
-    else:
-        selected_option4 = int(selected_option4.replace("年", "").replace("月", ""))
-        if int(selected_option4) > 2000:
-            display_df = display_df[display_df["game_date"].dt.year == selected_option4]
-        elif int(selected_option4) >= 1 and int(selected_option4) <= 12:
-            display_df = display_df[
-                display_df["game_date"].dt.month == selected_option4
-            ]
+    elif selected_option4 == "以上":
+        display_df = display_df[display_df["points_diff"].abs() >= selected_option4_num]
+    elif selected_option4 == "以下":
+        display_df = display_df[display_df["points_diff"].abs() <= selected_option4_num]
 
     if selected_option5 == "すべて":
         display_df = display_df
+    elif selected_option5 == "その他":
+        display_df = filtering_calendar(
+            display_df, selected_option5_1, selected_option5_2
+        )
+    elif selected_option5 == "直近5試合":
+        display_df = display_df.sort_values("game_date", ascending=False).head(5)
+    elif selected_option5 == "直近10試合":
+        display_df = display_df.sort_values("game_date", ascending=False).head(10)
     else:
-        display_df = display_df[display_df["oppo_team"] == selected_option5]
+        selected_option5 = int(selected_option5.replace("年", "").replace("月", ""))
+        if int(selected_option5) > 2000:
+            display_df = display_df[display_df["game_date"].dt.year == selected_option5]
+        elif int(selected_option5) >= 1 and int(selected_option5) <= 12:
+            display_df = display_df[
+                display_df["game_date"].dt.month == selected_option5
+            ]
+
+    if selected_option6 == "すべて":
+        display_df = display_df
+    else:
+        display_df = display_df[display_df["oppo_team"] == selected_option6]
 
     if order == "すべて" or order is None:
         display_df = display_df
@@ -404,7 +428,7 @@ def display_conditional_data(
     team=None,
     unique_years=None,
     unique_months=None,
-    unique_order=None,
+    unique_order=None,  # 使用していない
     unique_positions=None,
 ):
     if conditional_type == "term":
@@ -412,11 +436,11 @@ def display_conditional_data(
         term_results = (
             [func(filtering_df(df, team))]
             + [
-                func(filtering_df(df, team, selected_option4=str(year)))
+                func(filtering_df(df, team, selected_option5=str(year)))
                 for year in unique_years
             ]
             + [
-                func(filtering_df(df, team, selected_option4=str(month)))
+                func(filtering_df(df, team, selected_option5=str(month)))
                 for month in unique_months
             ]
         )
@@ -430,10 +454,10 @@ def display_conditional_data(
     elif conditional_type == "order":
         # 打順別
         order_results = [
-            func(filtering_df(df, team, order=str(order))) for order in unique_order
+            func(filtering_df(df, team, order=str(order))) for order in range(1, 10)
         ]
         order_results = pd.DataFrame(order_results)
-        order_results.index = unique_order
+        order_results.index = range(1, 10)
         return order_results
     elif conditional_type == "position":
         # 守備別
@@ -450,6 +474,10 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
     st.write("### 個人成績")
     players_df = pd.DataFrame()
     for player, group in df.groupby("選手名"):
+        # 通算規定打席数
+        if "regulation" in selected_options:
+            if group.shape[0] < selected_options["regulation"]:
+                continue
         _group = filtering_df(
             group,
             team,
@@ -458,8 +486,10 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
             selected_options["selected_option3"],
             selected_options["selected_option4"],
             selected_options["selected_option5"],
-            selected_options["selected_option4_1"],
-            selected_options["selected_option4_2"],
+            selected_options["selected_option6"],
+            selected_options["selected_option4_num"],
+            selected_options["selected_option5_1"],
+            selected_options["selected_option5_2"],
         )
         try:
             _group = _group.rename(columns=column_name)
@@ -571,8 +601,10 @@ def display_score_data(score_df, team, used_key_num):
         selected_options["selected_option3"],
         selected_options["selected_option4"],
         selected_options["selected_option5"],
-        selected_options["selected_option4_1"],
-        selected_options["selected_option4_2"],
+        selected_options["selected_option6"],
+        selected_options["selected_option4_num"],
+        selected_options["selected_option5_1"],
+        selected_options["selected_option5_2"],
     )
     filtered_score_results = [
         calc_score_data(_score_df),
@@ -654,6 +686,9 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
     score_df["result"] = score_df.apply(
         lambda row: win_or_lose(row, team_dict[team]), axis=1
     )
+    score_df["points_diff"] = score_df.apply(
+        lambda row: calc_points_diff(row, team_dict[team]), axis=1
+    )
 
     batting_df["game_date"] = pd.to_datetime(batting_df["game_date"])
 
@@ -673,6 +708,9 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
         unique_order,
         unique_position,
     ) = display_filter_batting_all(batting_df)
+    selected_options["regulation"] = regulation
+    selected_options["order"] = order
+    selected_options["position"] = position
 
     # 個人成績
     display_groupby_player(
@@ -744,6 +782,9 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
     score_df["result"] = score_df.apply(
         lambda row: win_or_lose(row, team_dict[team]), axis=1
     )
+    score_df["points_diff"] = score_df.apply(
+        lambda row: calc_points_diff(row, team_dict[team]), axis=1
+    )
 
     pitching_df["game_date"] = pd.to_datetime(pitching_df["game_date"])
 
@@ -797,6 +838,9 @@ def display_player_data(
     score_df["result"] = score_df.apply(
         lambda row: win_or_lose(row, team_dict[team]), axis=1
     )
+    score_df["points_diff"] = score_df.apply(
+        lambda row: calc_points_diff(row, team_dict[team]), axis=1
+    )
 
     batting_df["game_date"] = pd.to_datetime(batting_df["game_date"])
     pitching_df["game_date"] = pd.to_datetime(pitching_df["game_date"])
@@ -823,8 +867,10 @@ def display_player_data(
         selected_options["selected_option3"],
         selected_options["selected_option4"],
         selected_options["selected_option5"],
-        selected_options["selected_option4_1"],
-        selected_options["selected_option4_2"],
+        selected_options["selected_option6"],
+        selected_options["selected_option4_num"],
+        selected_options["selected_option5_1"],
+        selected_options["selected_option5_2"],
         order=order,
         position=position,
     )
@@ -903,8 +949,10 @@ def display_player_data(
         selected_options["selected_option3"],
         selected_options["selected_option4"],
         selected_options["selected_option5"],
-        selected_options["selected_option4_1"],
-        selected_options["selected_option4_2"],
+        selected_options["selected_option6"],
+        selected_options["selected_option4_num"],
+        selected_options["selected_option5_1"],
+        selected_options["selected_option5_2"],
     )
 
     try:
@@ -937,3 +985,17 @@ def display_player_data(
         )
         pitching_result = pitching_result.format(pitching_format)
         st.dataframe(pitching_result)
+
+
+def display_sabermetrics():
+    st.write("## セイバーメトリクス")
+    st.write("### 打撃")
+    st.write("#### OPS")
+    st.write("#### IsoP")
+    st.write("#### IsoD")
+    st.write("#### wOBA")
+    st.write("#### K%")
+    st.write("#### BB%")
+    st.write("#### BB/K")
+    st.write("### 投手")
+    st.write("#### 防御率")
