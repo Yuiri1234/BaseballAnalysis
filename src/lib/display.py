@@ -541,10 +541,10 @@ def display_conditional_data(
     elif conditional_type == "order":
         # 打順別
         order_results = [
-            func(filtering_df(df, team, order=str(order))) for order in range(1, 10)
+            func(filtering_df(df, team, order=str(order))) for order in unique_order
         ]
         order_results = pd.DataFrame(order_results)
-        order_results.index = range(1, 10)
+        order_results.index = [i for i in unique_order]
         return order_results
     elif conditional_type == "position":
         # 守備別
@@ -595,20 +595,14 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
         players_df = pd.DataFrame(columns=pd.DataFrame([func(df)]).columns)
 
     if type == "batting":
-        players_df = players_df.style.background_gradient(cmap=cm1, axis=0)
-        players_df = players_df.background_gradient(
-            cmap=cm2, axis=0, subset=low_better_batting
-        )
-        players_df = players_df.format(batting_format)
+        display_color_table(players_df, low_better_batting, format_dict=batting_format)
     elif type == "pitching":
-        players_df = players_df.fillna({"勝率": 0, "防御率": 99.99})
-        players_df = players_df.style.background_gradient(cmap=cm1, axis=0)
-        players_df = players_df.background_gradient(
-            cmap=cm2, axis=0, subset=low_better_pitching
+        display_color_table(
+            players_df,
+            low_better_pitching,
+            format_dict=pitching_format,
+            is_pitching=True,
         )
-        players_df = players_df.format(pitching_format)
-
-    st.dataframe(players_df)
 
 
 def display_detail_table(df, display_columns):
@@ -649,15 +643,16 @@ def display_detail_table(df, display_columns):
 def display_color_table(
     df, low_better_list, is_pitching=False, format_dict=None, axis=0, drop=False
 ):
+    _df = df.copy()
     if drop:
-        df = df.drop(["背番号", "試合数"], axis=1)
+        _df = _df.drop(["背番号", "試合数"], axis=1)
     if is_pitching:
-        df = df.fillna({"勝率": 0, "防御率": 99.99})
-    df = df.style.background_gradient(cmap=cm1, axis=axis)
-    df = df.background_gradient(cmap=cm2, axis=axis, subset=low_better_list)
+        _df = _df.fillna({"勝率": 0, "防御率": 99.99})
+    _df = _df.style.background_gradient(cmap=cm1, axis=axis)
+    _df = _df.background_gradient(cmap=cm2, axis=axis, subset=low_better_list)
     if format_dict is not None:
-        df = df.format(format_dict)
-    st.dataframe(df)
+        _df = _df.format(format_dict)
+    st.dataframe(_df)
 
 
 def display_score_data(score_df, team, used_key_num):
@@ -837,7 +832,7 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
 
     # 打順別
     batting_result_order = display_conditional_data(
-        batting_df, calc_batting_data, "order", team, unique_order=unique_order
+        batting_df, calc_batting_data, "order", team, unique_order=range(1, 10)
     )
 
     st.write("#### 打順別")
