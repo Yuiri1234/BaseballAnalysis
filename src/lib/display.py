@@ -329,11 +329,11 @@ def display_filter_options(df, used_key_num=0):
         point_diff = st.selectbox("点差", options, index=0)
         if point_diff == "以上":
             point_diff_num = st.number_input(
-                "点差(以上)", 0, 100, 0, key=f"score_{used_key_num}_1"
+                "点差(以上)", 0, 100, 5, key=f"score_{used_key_num}_1"
             )
         elif point_diff == "以下":
             point_diff_num = st.number_input(
-                "点差(以下)", 0, 100, 100, key=f"score_{used_key_num}_2"
+                "点差(以下)", 0, 100, 3, key=f"score_{used_key_num}_2"
             )
         else:
             point_diff_num = None
