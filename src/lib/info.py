@@ -72,10 +72,13 @@ batting_format = {
     "OPS": "{:.3f}",
     "IsoP": "{:.3f}",
     "IsoD": "{:.3f}",
+    "BABIP": "{:.3f}",
     "wOBA": "{:.3f}",
+    "SecA": "{:.3f}",
     "K%": "{:.3f}",
     "BB%": "{:.3f}",
     "BB/K": "{:.3f}",
+    "Spd": "{:.3f}",
 }
 
 pitching_format = {

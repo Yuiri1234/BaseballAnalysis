@@ -1,4 +1,5 @@
 import datetime
+import math
 
 import numpy as np
 import pandas as pd
@@ -128,6 +129,78 @@ def calc_batting_data(_batting_df):
     except ZeroDivisionError:
         woba_basic = 99.999
 
+    try:
+        babib = (_batting_df["安打"].sum() - _batting_df["本"].sum()) / (
+            _batting_df["打数"].sum()
+            + _batting_df["犠飛"].sum()
+            - _batting_df["三振"].sum()
+            - _batting_df["本"].sum()
+        )
+    except ZeroDivisionError:
+        babib = 0
+
+    stolen_bases = _batting_df["盗塁"].sum()
+    # 盗塁成功率を計算
+    success_rate = (
+        ((stolen_bases + 3) / (stolen_bases + 7) - 0.4) * 20 if stolen_bases != 0 else 0
+    )
+    # 盗塁企図を計算
+    try:
+        attempt = (
+            math.sqrt(stolen_bases / (one_base_hit + _batting_df["四死球"].sum())) / 0.07
+            if stolen_bases != 0
+            else 0
+        )
+    except ZeroDivisionError:
+        attempt = 0
+    # 三塁打割合を計算
+    try:
+        triples_rate = (
+            _batting_df["三塁打"].sum()
+            / (
+                _batting_df["打数"].sum()
+                - _batting_df["本"].sum()
+                - _batting_df["三振"].sum()
+            )
+            / 0.02
+            * 10
+        )
+    except ZeroDivisionError:
+        triples_rate = 0
+    # 得点割合を計算
+    try:
+        runs_rate = (
+            (_batting_df["得点"].sum() - _batting_df["本"].sum())
+            / (
+                _batting_df["安打"].sum()
+                + _batting_df["四死球"].sum()
+                - _batting_df["本"].sum()
+            )
+            - 0.1
+        ) / 0.04
+    except ZeroDivisionError:
+        runs_rate = 0
+
+    # 各要素が0以下の場合は0に、10以上の場合は10に変換
+    attempt = max(0, min(attempt, 10))
+    success_rate = max(0, min(success_rate, 10))
+    triples_rate = max(0, min(triples_rate, 10))
+    runs_rate = max(0, min(runs_rate, 10))
+
+    # Speed Scoreを計算
+    speed_score = (attempt + success_rate + triples_rate + runs_rate) / 4
+
+    # SecAを計算
+    try:
+        seca = (
+            total_bases
+            - _batting_df["安打"].sum()
+            + _batting_df["四死球"].sum()
+            + stolen_bases
+        ) / _batting_df["打数"].sum()
+    except ZeroDivisionError:
+        seca = 0
+
     return {
         "背番号": _batting_df["背番号"].values[0],
         "試合数": _batting_df.shape[0],
@@ -147,12 +220,15 @@ def calc_batting_data(_batting_df):
         "OPS": on_base_percentage + slugging_percentage,
         "IsoP": slugging_percentage - average,  # 純長打率
         "IsoD": on_base_percentage - average,
+        "BABIP": babib,
         "wOBA": woba_basic,
+        "SecA": seca,
         "三振": _batting_df["三振"].sum(),
         "K%": _batting_df["三振"].sum() / _batting_df["打席"].sum(),
         "四死球": _batting_df["四死球"].sum(),
         "BB%": _batting_df["四死球"].sum() / _batting_df["打席"].sum(),
         "BB/K": bb_k,
+        "Spd": speed_score,
         "犠打": _batting_df["犠打"].sum(),
         "犠飛": _batting_df["犠飛"].sum(),
         "併殺打": _batting_df["併殺打"].sum(),
@@ -990,12 +1066,124 @@ def display_player_data(
 def display_sabermetrics():
     st.write("## セイバーメトリクス")
     st.write("### 打撃")
+    st.write("#### 打率")
+    st.latex(
+        r"""
+    \text{打率} = \frac{\text{安打数}}{\text{打数}}
+    """
+    )
+
+    st.write("#### 出塁率")
+    st.latex(
+        r"""
+    \text{出塁率} = \frac{\text{安打数} + \text{四死球数}}{\text{打数} + \text{四死球数} + \text{犠飛数}}
+    """
+    )
+
+    st.write("#### 長打率")
+    st.latex(
+        r"""
+    \text{長打率} = \frac{\text{塁打数}}{\text{打数}}
+    """
+    )
+
     st.write("#### OPS")
+    st.latex(
+        r"""
+    \text{OPS} = \text{出塁率} + \text{長打率}
+    """
+    )
+
     st.write("#### IsoP")
+    st.latex(
+        r"""
+    \text{IsoP} = \text{長打率} - \text{打率}
+    """
+    )
+
     st.write("#### IsoD")
+    st.latex(
+        r"""
+    \text{IsoD} = \text{出塁率} - \text{打率}
+    """
+    )
+
+    st.write("#### BABIP")
+    st.latex(
+        r"""
+        \text{BABIP} = \frac{\text{安打数} - \text{本塁打数}}
+                        {\text{打数} - \text{三振数} - \text{本塁打数} + \text{犠飛数}}
+        """
+    )
+
     st.write("#### wOBA")
+    st.latex(
+        r"""
+        \text{wOBA} = \frac{0.7 \times \text{四死球数} + 0.9 \times (\text{単打数} + \text{敵失})
+        + 1.3 \times (\text{二塁打数} + \text{三塁打数}) + 2 \times \text{本塁打数}}
+        {\text{打席} + \text{犠打数}}
+        """
+    )
+
+    st.write("#### SecA")
+    st.latex(
+        r"""
+    \text{SecA} = \frac{\text{総塁打数} - \text{安打数} + \text{四死球数} + \text{盗塁数}}{\text{打数}}
+    """
+    )
+
     st.write("#### K%")
+    st.latex(
+        r"""
+    \text{K\%} = \frac{\text{三振数}}{\text{打席数}}
+    """
+    )
+
     st.write("#### BB%")
+    st.latex(
+        r"""
+    \text{BB\%} = \frac{\text{四死球数}}{\text{打席数}}
+    """
+    )
+
     st.write("#### BB/K")
+    st.latex(
+        r"""
+    \text{BB/K} = \frac{\text{四死球数}}{\text{三振数}}
+    """
+    )
+
+    st.write("#### Spd")
+    st.latex(
+        r"""
+    \text{Spd} = \frac{(A + B + C + D)}{4}
+    """
+    )
+    st.latex(
+        r"""
+    A = 20 \times (\frac{\text{盗塁数} + 3}{\text{盗塁数} + 7} - 0.4)
+    """
+    )
+    st.latex(
+        r"""
+    B = \frac{1}{0.07} \times \sqrt{\frac{\text{盗塁数}}{\text{単打数} + \text{四死球数}}}
+    """
+    )
+    st.latex(
+        r"""
+    C = 500 \times \frac{\text{三塁打数}}{\text{打数} - \text{本数} - \text{三振数}}
+    """
+    )
+    st.latex(
+        r"""
+    D = 25 \times (\frac{\text{得点} - \text{本数}}{\text{安打数} + \text{四死球数} - \text{本数}} - 0.1)
+    """
+    )
+
     st.write("### 投手")
     st.write("#### 防御率")
+    st.latex(
+        r"""
+    \text{防御率} = \frac{7 \times \text{自責点}}{\text{投球回}}
+    """
+    )
