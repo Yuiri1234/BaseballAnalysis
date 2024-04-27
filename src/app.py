@@ -7,6 +7,7 @@ from lib.display import (
     display_sabermetrics,
     display_score_data,
 )
+from lib.info import team_dict
 
 st.set_page_config(
     page_title="分析アプリ",
@@ -17,7 +18,8 @@ pd.set_option("display.max_colwidth", 80)
 
 
 def main():
-    team = "ryunen_busters"
+    team = st.sidebar.selectbox("チームを選択してください", team_dict.values())
+    team = [key for key, value in team_dict.items() if value == team][0]
 
     score_df = pd.read_csv(f"data/{team}/score.csv")
     batting_df = pd.read_csv(f"data/{team}/batting.csv")

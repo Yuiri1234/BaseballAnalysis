@@ -213,7 +213,7 @@ def calc_batting_data(_batting_df):
         "本塁打": _batting_df["本"].sum(),
         "打点": _batting_df["打点"].sum(),
         "得点": _batting_df["得点"].sum(),
-        "盗塁": _batting_df["盗塁"].sum(),
+        "盗塁": stolen_bases,
         "出塁率": on_base_percentage,
         "塁打数": total_bases,
         "長打率": slugging_percentage,
@@ -294,26 +294,26 @@ def display_filter_options(df, used_key_num=0):
     col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
         options = ["すべて", "公式戦", "練習試合"]
-        selected_option1 = st.selectbox("試合種別", options, index=0)
+        game_type = st.selectbox("試合種別", options, index=0)
     with col2:
         options = ["すべて", "先攻", "後攻"]
-        selected_option2 = st.selectbox("先攻後攻", options, index=0)
+        attack_type = st.selectbox("先攻後攻", options, index=0)
     with col3:
         options = ["すべて", "勝ち", "負け", "引き分け"]
-        selected_option3 = st.selectbox("結果", options, index=0)
+        result_type = st.selectbox("結果", options, index=0)
     with col4:
         options = ["すべて", "以上", "以下"]
-        selected_option4 = st.selectbox("点差", options, index=0)
-        if selected_option4 == "以上":
-            selected_option4_num = st.number_input(
+        point_diff = st.selectbox("点差", options, index=0)
+        if point_diff == "以上":
+            point_diff_num = st.number_input(
                 "点差(以上)", 0, 100, 0, key=f"score_{used_key_num}_1"
             )
-        elif selected_option4 == "以下":
-            selected_option4_num = st.number_input(
+        elif point_diff == "以下":
+            point_diff_num = st.number_input(
                 "点差(以下)", 0, 100, 100, key=f"score_{used_key_num}_2"
             )
         else:
-            selected_option4_num = None
+            point_diff_num = None
     with col5:
         unique_years = pd.to_datetime(df["game_date"]).dt.year.unique()
         unique_months = np.sort(pd.to_datetime(df["game_date"]).dt.month.unique())
@@ -323,28 +323,26 @@ def display_filter_options(df, used_key_num=0):
             + [f"{month}月" for month in unique_months]
             + ["直近5試合", "直近10試合", "その他"]
         )
-        selected_option5 = st.selectbox("期間", options, index=0)
-        if selected_option5 == "その他":
-            selected_option5_1, selected_option5_2 = display_filter_calendar(
-                df, used_key_num
-            )
+        term = st.selectbox("期間", options, index=0)
+        if term == "その他":
+            term_1, term_2 = display_filter_calendar(df, used_key_num)
         else:
-            selected_option5_1, selected_option5_2 = None, None
+            term_1, term_2 = None, None
     with col6:
         unique_oppo_teams = df["oppo_team"].unique()
         options = ["すべて"] + list(unique_oppo_teams)
-        selected_option6 = st.selectbox("対戦相手", options, index=0)
+        oppo_team = st.selectbox("対戦相手", options, index=0)
 
     return {
-        "selected_option1": selected_option1,
-        "selected_option2": selected_option2,
-        "selected_option3": selected_option3,
-        "selected_option4": selected_option4,
-        "selected_option5": selected_option5,
-        "selected_option6": selected_option6,
-        "selected_option4_num": selected_option4_num,
-        "selected_option5_1": selected_option5_1,
-        "selected_option5_2": selected_option5_2,
+        "game_type": game_type,
+        "attack_type": attack_type,
+        "result_type": result_type,
+        "point_diff": point_diff,
+        "term": term,
+        "oppo_team": oppo_team,
+        "point_diff_num": point_diff_num,
+        "term_1": term_1,
+        "term_2": term_2,
     }
 
 
@@ -410,71 +408,67 @@ def sort_key(item):
 def filtering_df(
     df,
     team,
-    selected_option1="すべて",
-    selected_option2="すべて",
-    selected_option3="すべて",
-    selected_option4="すべて",
-    selected_option5="すべて",
-    selected_option6="すべて",
-    selected_option4_num=None,
-    selected_option5_1=None,
-    selected_option5_2=None,
+    game_type="すべて",
+    attack_type="すべて",
+    result_type="すべて",
+    point_diff="すべて",
+    term="すべて",
+    oppo_team="すべて",
+    point_diff_num=None,
+    term_1=None,
+    term_2=None,
     order=None,
     position=None,
 ):
-    if selected_option1 == "すべて":
+    if game_type == "すべて":
         display_df = df
-    elif selected_option1 == "公式戦":
+    elif game_type == "公式戦":
         display_df = df[df["game_type"] == "公式戦"]
-    elif selected_option1 == "練習試合":
+    elif game_type == "練習試合":
         display_df = df[df["game_type"] == "練習試合"]
 
-    if selected_option2 == "すべて":
+    if attack_type == "すべて":
         display_df = display_df
-    elif selected_option2 == "先攻":
+    elif attack_type == "先攻":
         display_df = display_df[display_df["team_name_top"] == team_dict[team]]
-    elif selected_option2 == "後攻":
+    elif attack_type == "後攻":
         display_df = display_df[display_df["team_name_top"] != team_dict[team]]
 
-    if selected_option3 == "すべて":
+    if result_type == "すべて":
         display_df = display_df
-    elif selected_option3 == "勝ち":
+    elif result_type == "勝ち":
         display_df = display_df[display_df["result"] == "○"]
-    elif selected_option3 == "負け":
+    elif result_type == "負け":
         display_df = display_df[display_df["result"] == "☓"]
-    elif selected_option3 == "引き分け":
+    elif result_type == "引き分け":
         display_df = display_df[display_df["result"] == "△"]
 
-    if selected_option4 == "すべて":
+    if point_diff == "すべて":
         display_df = display_df
-    elif selected_option4 == "以上":
-        display_df = display_df[display_df["points_diff"].abs() >= selected_option4_num]
-    elif selected_option4 == "以下":
-        display_df = display_df[display_df["points_diff"].abs() <= selected_option4_num]
+    elif point_diff == "以上":
+        display_df = display_df[display_df["points_diff"].abs() >= point_diff_num]
+    elif point_diff == "以下":
+        display_df = display_df[display_df["points_diff"].abs() <= point_diff_num]
 
-    if selected_option5 == "すべて":
+    if term == "すべて":
         display_df = display_df
-    elif selected_option5 == "その他":
-        display_df = filtering_calendar(
-            display_df, selected_option5_1, selected_option5_2
-        )
-    elif selected_option5 == "直近5試合":
+    elif term == "その他":
+        display_df = filtering_calendar(display_df, term_1, term_2)
+    elif term == "直近5試合":
         display_df = display_df.sort_values("game_date", ascending=False).head(5)
-    elif selected_option5 == "直近10試合":
+    elif term == "直近10試合":
         display_df = display_df.sort_values("game_date", ascending=False).head(10)
     else:
-        selected_option5 = int(selected_option5.replace("年", "").replace("月", ""))
-        if int(selected_option5) > 2000:
-            display_df = display_df[display_df["game_date"].dt.year == selected_option5]
-        elif int(selected_option5) >= 1 and int(selected_option5) <= 12:
-            display_df = display_df[
-                display_df["game_date"].dt.month == selected_option5
-            ]
+        term = int(term.replace("年", "").replace("月", ""))
+        if int(term) > 2000:
+            display_df = display_df[display_df["game_date"].dt.year == term]
+        elif int(term) >= 1 and int(term) <= 12:
+            display_df = display_df[display_df["game_date"].dt.month == term]
 
-    if selected_option6 == "すべて":
+    if oppo_team == "すべて":
         display_df = display_df
     else:
-        display_df = display_df[display_df["oppo_team"] == selected_option6]
+        display_df = display_df[display_df["oppo_team"] == oppo_team]
 
     if order == "すべて" or order is None:
         display_df = display_df
@@ -511,14 +505,8 @@ def display_conditional_data(
         # 期間別
         term_results = (
             [func(filtering_df(df, team))]
-            + [
-                func(filtering_df(df, team, selected_option5=str(year)))
-                for year in unique_years
-            ]
-            + [
-                func(filtering_df(df, team, selected_option5=str(month)))
-                for month in unique_months
-            ]
+            + [func(filtering_df(df, team, term=str(year))) for year in unique_years]
+            + [func(filtering_df(df, team, term=str(month))) for month in unique_months]
         )
         term_results = pd.DataFrame(term_results)
         term_results.index = (
@@ -557,15 +545,15 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
         _group = filtering_df(
             group,
             team,
-            selected_options["selected_option1"],
-            selected_options["selected_option2"],
-            selected_options["selected_option3"],
-            selected_options["selected_option4"],
-            selected_options["selected_option5"],
-            selected_options["selected_option6"],
-            selected_options["selected_option4_num"],
-            selected_options["selected_option5_1"],
-            selected_options["selected_option5_2"],
+            selected_options["game_type"],
+            selected_options["attack_type"],
+            selected_options["result_type"],
+            selected_options["point_diff"],
+            selected_options["term"],
+            selected_options["oppo_team"],
+            selected_options["point_diff_num"],
+            selected_options["term_1"],
+            selected_options["term_2"],
         )
         try:
             _group = _group.rename(columns=column_name)
@@ -635,6 +623,20 @@ def display_detail_table(df, display_columns):
     )
 
 
+def display_color_table(
+    df, low_better_list, is_pitching=False, format_dict=None, axis=0, drop=False
+):
+    if drop:
+        df = df.drop(["背番号", "試合数"], axis=1)
+    if is_pitching:
+        df = df.fillna({"勝率": 0, "防御率": 99.99})
+    df = df.style.background_gradient(cmap=cm1, axis=axis)
+    df = df.background_gradient(cmap=cm2, axis=axis, subset=low_better_list)
+    if format_dict is not None:
+        df = df.format(format_dict)
+    st.dataframe(df)
+
+
 def display_score_data(score_df, team, used_key_num):
     st.write("## スコアデータ")
 
@@ -672,15 +674,15 @@ def display_score_data(score_df, team, used_key_num):
     _score_df = filtering_df(
         score_df,
         team,
-        selected_options["selected_option1"],
-        selected_options["selected_option2"],
-        selected_options["selected_option3"],
-        selected_options["selected_option4"],
-        selected_options["selected_option5"],
-        selected_options["selected_option6"],
-        selected_options["selected_option4_num"],
-        selected_options["selected_option5_1"],
-        selected_options["selected_option5_2"],
+        selected_options["game_type"],
+        selected_options["attack_type"],
+        selected_options["result_type"],
+        selected_options["point_diff"],
+        selected_options["term"],
+        selected_options["oppo_team"],
+        selected_options["point_diff_num"],
+        selected_options["term_1"],
+        selected_options["term_2"],
     )
     filtered_score_results = [
         calc_score_data(_score_df),
@@ -721,35 +723,34 @@ def display_score_data(score_df, team, used_key_num):
 
     st.write("#### イニング別成績")
     filtered_inning_score = filtered_inning_score.T
-    filtered_inning_score = filtered_inning_score.style.background_gradient(
-        cmap=cm1, axis=0
+    display_color_table(
+        filtered_inning_score,
+        low_better_list=["平均失点"],
+        format_dict={col: "{:.3f}" for col in filtered_inning_score.columns},
+        axis=0,
     )
-    filtered_inning_score = filtered_inning_score.background_gradient(
-        cmap=cm2, axis=0, subset=["平均失点"]
-    )
-    filtered_inning_score = filtered_inning_score.format(
-        {col: "{:.3f}" for col in filtered_inning_score.columns}
-    )
-    st.dataframe(filtered_inning_score)
 
     st.write("### 期間別")
-    score_results = score_results.style.background_gradient(cmap=cm1, axis=0)
-    score_results = score_results.background_gradient(
-        cmap=cm2, axis=0, subset=low_better_score
+    display_color_table(
+        score_results, low_better_score, format_dict=score_format, axis=0
     )
-    score_results = score_results.format(score_format)
-    st.dataframe(score_results)
 
     st.write("#### イニング別成績")
     st.write("##### 得点")
-    inning_point = inning_point.style.background_gradient(cmap=cm1, axis=1)
-    inning_point = inning_point.format({col: "{:.3f}" for col in inning_point.columns})
-    st.dataframe(inning_point)
+    display_color_table(
+        inning_point,
+        low_better_list=None,
+        format_dict={col: "{:.3f}" for col in inning_point.columns},
+        axis=1,
+    )
 
     st.write("##### 失点")
-    inning_losts = inning_losts.style.background_gradient(cmap=cm2, axis=1)
-    inning_losts = inning_losts.format({col: "{:.3f}" for col in inning_losts.columns})
-    st.dataframe(inning_losts)
+    display_color_table(
+        inning_losts,
+        low_better_list=None,
+        format_dict={col: "{:.3f}" for col in inning_losts.columns},
+        axis=1,
+    )
 
 
 def display_batting_data(score_df, batting_df, team, used_key_num):
@@ -803,13 +804,13 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
     )
 
     st.write("#### 期間別")
-    batting_result = batting_result.drop(["背番号", "試合数"], axis=1)
-    batting_result = batting_result.style.background_gradient(cmap=cm1, axis=0)
-    batting_result = batting_result.background_gradient(
-        cmap=cm2, axis=0, subset=low_better_batting
+    display_color_table(
+        batting_result,
+        low_better_batting,
+        format_dict=batting_format,
+        axis=0,
+        drop=True,
     )
-    batting_result = batting_result.format(batting_format)
-    st.dataframe(batting_result)
 
     # 打順別
     batting_result_order = display_conditional_data(
@@ -817,15 +818,13 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
     )
 
     st.write("#### 打順別")
-    batting_result_order = batting_result_order.drop(["背番号", "試合数"], axis=1)
-    batting_result_order = batting_result_order.style.background_gradient(
-        cmap=cm1, axis=0
+    display_color_table(
+        batting_result_order,
+        low_better_batting,
+        format_dict=batting_format,
+        axis=0,
+        drop=True,
     )
-    batting_result_order = batting_result_order.background_gradient(
-        cmap=cm2, axis=0, subset=low_better_batting
-    )
-    batting_result_order = batting_result_order.format(batting_format)
-    st.dataframe(batting_result_order)
 
     # 守備別
     batting_result_position = display_conditional_data(
@@ -837,15 +836,13 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
     )
 
     st.write("#### 先発守備位置別")
-    batting_result_position = batting_result_position.drop(["背番号", "試合数"], axis=1)
-    batting_result_position = batting_result_position.style.background_gradient(
-        cmap=cm1, axis=0
+    display_color_table(
+        batting_result_position,
+        low_better_batting,
+        format_dict=batting_format,
+        axis=0,
+        drop=True,
     )
-    batting_result_position = batting_result_position.background_gradient(
-        cmap=cm2, axis=0, subset=low_better_batting
-    )
-    batting_result_position = batting_result_position.format(batting_format)
-    st.dataframe(batting_result_position)
 
 
 def display_pitching_data(score_df, pitching_df, team, used_key_num):
@@ -889,13 +886,13 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
         pitching_df, calc_pitching_data, "term", team, unique_years, unique_months
     )
     st.write("#### 期間別")
-    pitching_result = pitching_result.drop(["背番号", "試合数"], axis=1)
-    pitching_result = pitching_result.style.background_gradient(cmap=cm1, axis=0)
-    pitching_result = pitching_result.background_gradient(
-        cmap=cm2, axis=0, subset=low_better_pitching
+    display_color_table(
+        pitching_result,
+        low_better_pitching,
+        format_dict=pitching_format,
+        axis=0,
+        drop=True,
     )
-    pitching_result = pitching_result.format(pitching_format)
-    st.dataframe(pitching_result)
 
 
 def display_player_data(
@@ -938,15 +935,15 @@ def display_player_data(
     _batting_df = filtering_df(
         batting_df,
         team,
-        selected_options["selected_option1"],
-        selected_options["selected_option2"],
-        selected_options["selected_option3"],
-        selected_options["selected_option4"],
-        selected_options["selected_option5"],
-        selected_options["selected_option6"],
-        selected_options["selected_option4_num"],
-        selected_options["selected_option5_1"],
-        selected_options["selected_option5_2"],
+        selected_options["game_type"],
+        selected_options["attack_type"],
+        selected_options["result_type"],
+        selected_options["point_diff"],
+        selected_options["term"],
+        selected_options["oppo_team"],
+        selected_options["point_diff_num"],
+        selected_options["term_1"],
+        selected_options["term_2"],
         order=order,
         position=position,
     )
@@ -972,12 +969,9 @@ def display_player_data(
     )
 
     st.write("#### 期間別")
-    batting_result = batting_result.style.background_gradient(cmap=cm1, axis=0)
-    batting_result = batting_result.background_gradient(
-        cmap=cm2, axis=0, subset=low_better_batting
+    display_color_table(
+        batting_result, low_better_batting, format_dict=batting_format, axis=0
     )
-    batting_result = batting_result.format(batting_format)
-    st.dataframe(batting_result)
 
     # 打順別
     batting_result_order = display_conditional_data(
@@ -985,14 +979,9 @@ def display_player_data(
     )
 
     st.write("#### 打順別")
-    batting_result_order = batting_result_order.style.background_gradient(
-        cmap=cm1, axis=0
+    display_color_table(
+        batting_result_order, low_better_batting, format_dict=batting_format, axis=0
     )
-    batting_result_order = batting_result_order.background_gradient(
-        cmap=cm2, axis=0, subset=low_better_batting
-    )
-    batting_result_order = batting_result_order.format(batting_format)
-    st.dataframe(batting_result_order)
 
     # 守備別
     batting_result_position = display_conditional_data(
@@ -1004,14 +993,9 @@ def display_player_data(
     )
 
     st.write("#### 先発守備位置別")
-    batting_result_position = batting_result_position.style.background_gradient(
-        cmap=cm1, axis=0
+    display_color_table(
+        batting_result_position, low_better_batting, format_dict=batting_format, axis=0
     )
-    batting_result_position = batting_result_position.background_gradient(
-        cmap=cm2, axis=0, subset=low_better_batting
-    )
-    batting_result_position = batting_result_position.format(batting_format)
-    st.dataframe(batting_result_position)
 
     # 投手成績
     st.write("### 投手成績")
@@ -1020,15 +1004,15 @@ def display_player_data(
     _pitching_df = filtering_df(
         pitching_df,
         team,
-        selected_options["selected_option1"],
-        selected_options["selected_option2"],
-        selected_options["selected_option3"],
-        selected_options["selected_option4"],
-        selected_options["selected_option5"],
-        selected_options["selected_option6"],
-        selected_options["selected_option4_num"],
-        selected_options["selected_option5_1"],
-        selected_options["selected_option5_2"],
+        selected_options["game_type"],
+        selected_options["attack_type"],
+        selected_options["result_type"],
+        selected_options["point_diff"],
+        selected_options["term"],
+        selected_options["oppo_team"],
+        selected_options["point_diff_num"],
+        selected_options["term_1"],
+        selected_options["term_2"],
     )
 
     try:
@@ -1054,13 +1038,13 @@ def display_player_data(
         )
 
         st.write("#### 期間別")
-        pitching_result = pitching_result.fillna({"勝率": 0, "防御率": 99.99})
-        pitching_result = pitching_result.style.background_gradient(cmap=cm1, axis=0)
-        pitching_result = pitching_result.background_gradient(
-            cmap=cm2, axis=0, subset=low_better_pitching
+        display_color_table(
+            pitching_result,
+            low_better_pitching,
+            is_pitching=True,
+            format_dict=pitching_format,
+            axis=0,
         )
-        pitching_result = pitching_result.format(pitching_format)
-        st.dataframe(pitching_result)
 
 
 def display_sabermetrics():
