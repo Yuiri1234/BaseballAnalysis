@@ -84,11 +84,11 @@ batting_format = {
 pitching_format = {
     "勝率": "{:.3f}",
     "防御率": "{:.3f}",
-    # "奪三振率": "{:.3f}",
-    # "与四球率": "{:.3f}",
-    # "被本塁打率": "{:.3f}",
-    # "被打率": "{:.3f}",
-    # "WHIP": "{:.3f}",
+    "K/9": "{:.3f}",
+    "BB/9": "{:.3f}",
+    "K/BB": "{:.3f}",
+    "WHIP": "{:.3f}",
+    "LOB%": "{:.3f}",
 }
 
 display_score_columns = [
@@ -178,6 +178,7 @@ low_better_pitching = [
     "与四死球",
     "ボーク",
     "暴投",
+    "WHIP",
 ]
 
 position_list = [
