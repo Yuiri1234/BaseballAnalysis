@@ -565,19 +565,36 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
         if "regulation" in selected_options:
             if group.shape[0] < selected_options["regulation"]:
                 continue
-        _group = filtering_df(
-            group,
-            team,
-            selected_options["game_type"],
-            selected_options["attack_type"],
-            selected_options["result_type"],
-            selected_options["point_diff"],
-            selected_options["term"],
-            selected_options["oppo_team"],
-            selected_options["point_diff_num"],
-            selected_options["term_1"],
-            selected_options["term_2"],
-        )
+        if type == "batting":
+            _group = filtering_df(
+                group,
+                team,
+                selected_options["game_type"],
+                selected_options["attack_type"],
+                selected_options["result_type"],
+                selected_options["point_diff"],
+                selected_options["term"],
+                selected_options["oppo_team"],
+                selected_options["point_diff_num"],
+                selected_options["term_1"],
+                selected_options["term_2"],
+                selected_options["order"],
+                selected_options["position"],
+            )
+        elif type == "pitching":
+            _group = filtering_df(
+                group,
+                team,
+                selected_options["game_type"],
+                selected_options["attack_type"],
+                selected_options["result_type"],
+                selected_options["point_diff"],
+                selected_options["term"],
+                selected_options["oppo_team"],
+                selected_options["point_diff_num"],
+                selected_options["term_1"],
+                selected_options["term_2"],
+            )
         try:
             _group = _group.rename(columns=column_name)
             player_df = pd.DataFrame([func(_group)])
