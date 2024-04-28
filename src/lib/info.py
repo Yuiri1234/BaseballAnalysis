@@ -66,6 +66,7 @@ score_format = {
 }
 
 batting_format = {
+    "勝率": "{:.3f}",
     "打率": "{:.3f}",
     "出塁率": "{:.3f}",
     "長打率": "{:.3f}",
@@ -79,6 +80,7 @@ batting_format = {
     "BB%": "{:.3f}",
     "BB/K": "{:.3f}",
     "Spd": "{:.3f}",
+    "失策率": "{:.3f}",
 }
 
 pitching_format = {
@@ -166,6 +168,7 @@ low_better_batting = [
     "K%",
     "併殺打",
     "失策",
+    "失策率",
 ]
 
 low_better_pitching = [
@@ -178,6 +181,7 @@ low_better_pitching = [
     "与四死球",
     "ボーク",
     "暴投",
+    "BB/9",
     "WHIP",
 ]
 
