@@ -286,16 +286,22 @@ def calc_pitching_data(_pitching_df):
         sum_inning = _pitching_df["投球回(フル)"].sum() + _pitching_df["投球回(1/3)"].sum() / 3
         if sum_inning == 0:
             diffence_rate = 99.999
-            whip = 99.999
+            whip = 9.999
             k9 = 0
-            bb9 = 99.999
+            bb9 = 9.999
             kbb = 0
         else:
             diffence_rate = _pitching_df["自責点"].sum() / sum_inning * 7  # 7回で1試合
             whip = (_pitching_df["被安打"].sum() + _pitching_df["与四死球"].sum()) / sum_inning
             k9 = _pitching_df["奪三振"].sum() / sum_inning * 9
             bb9 = _pitching_df["与四死球"].sum() / sum_inning * 9
-            kbb = k9 / bb9
+            if _pitching_df["与四死球"].sum() == 0:
+                if _pitching_df["奪三振"].sum() == 0:
+                    kbb = 0
+                else:
+                    kbb = 9.999
+            else:
+                kbb = _pitching_df["奪三振"].sum() / _pitching_df["与四死球"].sum()
     except ZeroDivisionError:
         sum_inning = 0
         diffence_rate = 99.999
@@ -709,9 +715,7 @@ def display_detail_table(df, display_columns):
     )
 
 
-def display_color_table(
-    df, low_better_list, format_dict=None, axis=0, drop=False
-):
+def display_color_table(df, low_better_list, format_dict=None, axis=0, drop=False):
     _df = df.copy()
     if drop:
         _df = _df.drop(["背番号", "試合数"], axis=1)
