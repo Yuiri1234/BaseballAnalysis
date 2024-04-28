@@ -201,6 +201,14 @@ def calc_batting_data(_batting_df):
     except ZeroDivisionError:
         seca = 0
 
+    try:
+        error_rate = (
+            _batting_df["失策"].sum()
+            / _batting_df.query("出場 == '先発' and 守備 != '-' and 守備 != 'DH'").shape[0]
+        )
+    except ZeroDivisionError:
+        error_rate = 0
+
     return {
         "背番号": _batting_df["背番号"].values[0],
         "試合数": _batting_df.shape[0],
@@ -234,6 +242,7 @@ def calc_batting_data(_batting_df):
         "併殺打": _batting_df["併殺打"].sum(),
         "敵失": _batting_df["敵失"].sum(),
         "失策": _batting_df["失策"].sum(),
+        "失策率": error_rate,
     }
 
 
@@ -521,7 +530,7 @@ def display_conditional_data(
     team=None,
     unique_years=None,
     unique_months=None,
-    unique_order=None,  # 使用していない
+    unique_order=None,
     unique_positions=None,
 ):
     if conditional_type == "term":
@@ -563,7 +572,7 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
     for player, group in df.groupby("選手名"):
         # 通算規定打席数
         if "regulation" in selected_options:
-            if group.shape[0] < selected_options["regulation"]:
+            if group["打席"].sum() < selected_options["regulation"]:
                 continue
         if type == "batting":
             _group = filtering_df(
@@ -1205,6 +1214,14 @@ def display_sabermetrics():
     st.latex(
         r"""
     D = 25 \times (\frac{\text{得点} - \text{本数}}{\text{安打数} + \text{四死球数} - \text{本数}} - 0.1)
+    """
+    )
+
+    st.write("#### 失策率")
+    st.write("先発出場した試合あたりにする失策する確率．（本来は守備機会数あたりであるがデータがないため以下の計算で表す．）")
+    st.latex(
+        r"""
+    \text{失策率} = \frac{\text{失策数}}{\text{先発出場試合数}}
     """
     )
 
