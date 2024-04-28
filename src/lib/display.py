@@ -715,12 +715,15 @@ def display_detail_table(df, display_columns):
     )
 
 
-def display_color_table(df, low_better_list, format_dict=None, axis=0, drop=False):
+def display_color_table(df, low_better_list=None, format_dict=None, axis=0, drop=False):
     _df = df.copy()
     if drop:
         _df = _df.drop(["背番号", "試合数"], axis=1)
     _df = _df.style.background_gradient(cmap=cm1, axis=axis)
-    _df = _df.background_gradient(cmap=cm2, axis=axis, subset=low_better_list)
+    if low_better_list == "all":
+        _df = _df.background_gradient(cmap=cm2, axis=axis)
+    elif low_better_list is not None:
+        _df = _df.background_gradient(cmap=cm2, axis=axis, subset=low_better_list)
     if format_dict is not None:
         _df = _df.format(format_dict)
     st.dataframe(_df)
@@ -846,7 +849,7 @@ def display_score_data(score_df, team, used_key_num):
     st.write("##### 失点")
     display_color_table(
         inning_losts,
-        low_better_list=None,
+        low_better_list="all",
         format_dict={col: "{:.3f}" for col in inning_losts.columns},
         axis=1,
     )
