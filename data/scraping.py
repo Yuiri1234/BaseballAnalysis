@@ -25,7 +25,21 @@ def get_game_urls(links, url_header):
 def get_game_info(soup, game):
     dev_list = soup.find_all("div")
     info = {}
+    flag = False
     for dev in dev_list:
+        if "gameInfo02" in dev.get("class"):
+            game_info = dev.text.split("\n")
+            game_info = [item.strip() for item in game_info if item.strip()]
+            if len(game_info) == 4:
+                info["game_place"] = None
+                info["team_name_top"] = game_info[0]
+                info["team_name_bottom"] = game_info[3]
+            elif len(game_info) == 5:
+                info["game_place"] = game_info[3]
+                info["team_name_top"] = game_info[0]
+                info["team_name_bottom"] = game_info[4]
+            if flag:
+                break
         if "dateInfo" in dev.get("class"):
             date_info = dev.text.split("\n")
             info["game"] = game
@@ -34,7 +48,10 @@ def get_game_info(soup, game):
             info["game_date"] = datetime.strptime(date[0], "%Y/%m/%d").date()
             info["game_day"] = date[1][0]
             info["game_time"] = date_info[3][:-1]
-            break
+            if flag:
+                break
+            flag = True
+
     info_df = pd.DataFrame([info])
     return info_df
 
@@ -56,11 +73,9 @@ def get_table_info(table):
 def get_score_df(df, info_df):
     df.columns = ["team_name", "1", "2", "3", "4", "5", "6", "7", "8", "9", "points"]
     df.index = ["top", "bottom"]
-    teams = df.iloc[:, 0].values
     scores = df.iloc[:, 1:].values.flatten()
-    scores = np.concatenate([teams, scores])
     score_df = pd.DataFrame([scores])
-    columns = ["team_name_top", "team_name_bottom"]
+    columns = []
     columns.extend(
         [
             str(i) + "_" + j if i < 10 else "points_" + j

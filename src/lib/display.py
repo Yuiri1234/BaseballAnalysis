@@ -343,7 +343,7 @@ def split_inning(inning):
 
 
 def display_filter_options(df, used_key_num=0):
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
     with col1:
         options = ["すべて", "公式戦", "練習試合"]
         game_type = st.selectbox("試合種別", options, index=0)
@@ -384,6 +384,16 @@ def display_filter_options(df, used_key_num=0):
         unique_oppo_teams = df["oppo_team"].unique()
         options = ["すべて"] + list(unique_oppo_teams)
         oppo_team = st.selectbox("対戦相手", options, index=0)
+    with col7:
+        unique_game_place = df["game_place"].unique()
+        unique_game_place = [
+            str(x)
+            for x in unique_game_place
+            if not (math.isnan(x) if isinstance(x, float) else False) and x != ""
+        ]
+        unique_game_place = sorted(unique_game_place)
+        options = ["すべて"] + list(unique_game_place)
+        game_place = st.selectbox("試合場所", options, index=0)
 
     return {
         "game_type": game_type,
@@ -392,6 +402,7 @@ def display_filter_options(df, used_key_num=0):
         "point_diff": point_diff,
         "term": term,
         "oppo_team": oppo_team,
+        "game_place": game_place,
         "point_diff_num": point_diff_num,
         "term_1": term_1,
         "term_2": term_2,
@@ -466,6 +477,7 @@ def filtering_df(
     point_diff="すべて",
     term="すべて",
     oppo_team="すべて",
+    game_place="すべて",
     point_diff_num=None,
     term_1=None,
     term_2=None,
@@ -521,6 +533,11 @@ def filtering_df(
         display_df = display_df
     else:
         display_df = display_df[display_df["oppo_team"] == oppo_team]
+
+    if game_place == "すべて":
+        display_df = display_df
+    else:
+        display_df = display_df[display_df["game_place"] == game_place]
 
     if order == "すべて" or order is None:
         display_df = display_df
@@ -604,6 +621,7 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
                 selected_options["point_diff"],
                 selected_options["term"],
                 selected_options["oppo_team"],
+                selected_options["game_place"],
                 selected_options["point_diff_num"],
                 selected_options["term_1"],
                 selected_options["term_2"],
@@ -620,6 +638,7 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
                 selected_options["point_diff"],
                 selected_options["term"],
                 selected_options["oppo_team"],
+                selected_options["game_place"],
                 selected_options["point_diff_num"],
                 selected_options["term_1"],
                 selected_options["term_2"],
@@ -744,6 +763,7 @@ def display_score_data(score_df, team, used_key_num):
         selected_options["point_diff"],
         selected_options["term"],
         selected_options["oppo_team"],
+        selected_options["game_place"],
         selected_options["point_diff_num"],
         selected_options["term_1"],
         selected_options["term_2"],
@@ -1009,6 +1029,7 @@ def display_player_data(
         selected_options["point_diff"],
         selected_options["term"],
         selected_options["oppo_team"],
+        selected_options["game_place"],
         selected_options["point_diff_num"],
         selected_options["term_1"],
         selected_options["term_2"],
@@ -1078,6 +1099,7 @@ def display_player_data(
         selected_options["point_diff"],
         selected_options["term"],
         selected_options["oppo_team"],
+        selected_options["game_place"],
         selected_options["point_diff_num"],
         selected_options["term_1"],
         selected_options["term_2"],
