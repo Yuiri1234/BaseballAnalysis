@@ -789,9 +789,20 @@ def display_score_data(score_df, team, used_key_num):
     filtered_inning_score = [
         calc_inning_points_mean(_score_df),
         calc_inning_losts_mean(_score_df),
+        calc_inning_points_mean(_score_df[_score_df["result"] == "○"]),
+        calc_inning_losts_mean(_score_df[_score_df["result"] == "○"]),
+        calc_inning_points_mean(_score_df[_score_df["result"] == "☓"]),
+        calc_inning_losts_mean(_score_df[_score_df["result"] == "☓"]),
     ]
     filtered_inning_score = pd.DataFrame(filtered_inning_score)
-    filtered_inning_score.index = ["平均得点", "平均失点"]
+    filtered_inning_score.index = [
+        "平均得点",
+        "平均失点",
+        "平均得点(勝)",
+        "平均失点(勝)",
+        "平均得点(負)",
+        "平均失点(負)",
+    ]
 
     # 期間別得点
     inning_point = display_conditional_data(
@@ -812,7 +823,7 @@ def display_score_data(score_df, team, used_key_num):
     filtered_inning_score = filtered_inning_score.T
     display_color_table(
         filtered_inning_score,
-        low_better_list=["平均失点"],
+        low_better_list=["平均失点", "平均失点(勝)", "平均失点(負)"],
         format_dict={col: "{:.3f}" for col in filtered_inning_score.columns},
         axis=0,
     )
