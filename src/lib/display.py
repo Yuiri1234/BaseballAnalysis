@@ -16,6 +16,7 @@ from lib.calculate import (
 )
 from lib.info import (
     batting_format,
+    batting_metrics,
     column_name,
     display_batting_columns,
     display_pitching_columns,
@@ -24,6 +25,7 @@ from lib.info import (
     low_better_pitching,
     low_better_score,
     pitching_format,
+    pitching_metrics,
     position_list,
     score_format,
     team_dict,
@@ -279,22 +281,30 @@ def calc_pitching_data(_pitching_df):
             + _pitching_df[_pitching_df["勝敗"] == "負"].shape[0]
         )
     except ZeroDivisionError:
-        win_rate = None
+        win_rate = 0
     try:
         sum_inning = _pitching_df["投球回(フル)"].sum() + _pitching_df["投球回(1/3)"].sum() / 3
         if sum_inning == 0:
-            diffence_rate = None
-            whip = None
-            k9 = None
-            bb9 = None
+            diffence_rate = 99.999
+            whip = 9.999
+            k9 = 0
+            bb9 = 9.999
+            kbb = 0
         else:
             diffence_rate = _pitching_df["自責点"].sum() / sum_inning * 7  # 7回で1試合
             whip = (_pitching_df["被安打"].sum() + _pitching_df["与四死球"].sum()) / sum_inning
             k9 = _pitching_df["奪三振"].sum() / sum_inning * 9
             bb9 = _pitching_df["与四死球"].sum() / sum_inning * 9
+            if _pitching_df["与四死球"].sum() == 0:
+                if _pitching_df["奪三振"].sum() == 0:
+                    kbb = 0
+                else:
+                    kbb = 9.999
+            else:
+                kbb = _pitching_df["奪三振"].sum() / _pitching_df["与四死球"].sum()
     except ZeroDivisionError:
         sum_inning = 0
-        diffence_rate = None
+        diffence_rate = 99.999
     sum_inning_str = (
         f"{_pitching_df['投球回(フル)'].sum() + _pitching_df['投球回(1/3)'].sum() // 3}回",
         f"{_pitching_df['投球回(1/3)'].sum() % 3}/3",
@@ -329,7 +339,7 @@ def calc_pitching_data(_pitching_df):
         "K/9": k9,
         "与四死球": _pitching_df["与四死球"].sum(),
         "BB/9": bb9,
-        "K/BB": k9 / bb9 if bb9 != 0 else None,
+        "K/BB": kbb,
         "ボーク": _pitching_df["ボーク"].sum(),
         "暴投": _pitching_df["暴投"].sum(),
         "WHIP": whip,
@@ -667,7 +677,6 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
             players_df,
             low_better_pitching,
             format_dict=pitching_format,
-            is_pitching=True,
         )
 
 
@@ -706,14 +715,10 @@ def display_detail_table(df, display_columns):
     )
 
 
-def display_color_table(
-    df, low_better_list, is_pitching=False, format_dict=None, axis=0, drop=False
-):
+def display_color_table(df, low_better_list, format_dict=None, axis=0, drop=False):
     _df = df.copy()
     if drop:
         _df = _df.drop(["背番号", "試合数"], axis=1)
-    if is_pitching:
-        _df = _df.fillna({"勝率": 0, "防御率": 99.99})
     _df = _df.style.background_gradient(cmap=cm1, axis=axis)
     _df = _df.background_gradient(cmap=cm2, axis=axis, subset=low_better_list)
     if format_dict is not None:
@@ -787,9 +792,20 @@ def display_score_data(score_df, team, used_key_num):
     filtered_inning_score = [
         calc_inning_points_mean(_score_df),
         calc_inning_losts_mean(_score_df),
+        calc_inning_points_mean(_score_df[_score_df["result"] == "○"]),
+        calc_inning_losts_mean(_score_df[_score_df["result"] == "○"]),
+        calc_inning_points_mean(_score_df[_score_df["result"] == "☓"]),
+        calc_inning_losts_mean(_score_df[_score_df["result"] == "☓"]),
     ]
     filtered_inning_score = pd.DataFrame(filtered_inning_score)
-    filtered_inning_score.index = ["平均得点", "平均失点"]
+    filtered_inning_score.index = [
+        "平均得点",
+        "平均失点",
+        "平均得点(勝)",
+        "平均失点(勝)",
+        "平均得点(負)",
+        "平均失点(負)",
+    ]
 
     # 期間別得点
     inning_point = display_conditional_data(
@@ -810,7 +826,7 @@ def display_score_data(score_df, team, used_key_num):
     filtered_inning_score = filtered_inning_score.T
     display_color_table(
         filtered_inning_score,
-        low_better_list=["平均失点"],
+        low_better_list=["平均失点", "平均失点(勝)", "平均失点(負)"],
         format_dict={col: "{:.3f}" for col in filtered_inning_score.columns},
         axis=0,
     )
@@ -1132,7 +1148,6 @@ def display_player_data(
         display_color_table(
             pitching_result,
             low_better_pitching,
-            is_pitching=True,
             format_dict=pitching_format,
             axis=0,
         )
@@ -1141,179 +1156,17 @@ def display_player_data(
 def display_sabermetrics():
     st.write("## セイバーメトリクス")
     st.write("### 打撃")
-    st.write("#### 打率")
-    st.latex(
-        r"""
-    \text{打率} = \frac{\text{安打数}}{\text{打数}}
-    """
-    )
-
-    st.write("#### 出塁率")
-    st.latex(
-        r"""
-    \text{出塁率} = \frac{\text{安打数} + \text{四死球数}}{\text{打数} + \text{四死球数} + \text{犠飛数}}
-    """
-    )
-
-    st.write("#### 長打率")
-    st.latex(
-        r"""
-    \text{長打率} = \frac{\text{塁打数}}{\text{打数}}
-    """
-    )
-
-    st.write("#### OPS")
-    st.latex(
-        r"""
-    \text{OPS} = \text{出塁率} + \text{長打率}
-    """
-    )
-
-    st.write("#### IsoP")
-    st.write("純長打率")
-    st.latex(
-        r"""
-    \text{IsoP} = \text{長打率} - \text{打率}
-    """
-    )
-
-    st.write("#### IsoD")
-    st.write("Isolated Disciplineの略．選球眼（四死球によってどれだけ出塁したか）を表す．")
-    st.latex(
-        r"""
-    \text{IsoD} = \text{出塁率} - \text{打率}
-    """
-    )
-
-    st.write("#### BABIP")
-    st.write("本塁打を除くインプレー打球のうち安打となった割合を表す．")
-    st.latex(
-        r"""
-        \text{BABIP} = \frac{\text{安打数} - \text{本塁打数}}
-                        {\text{打数} - \text{三振数} - \text{本塁打数} + \text{犠飛数}}
-        """
-    )
-
-    st.write("#### wOBA")
-    st.write("Weighted On-Base Averageの略．１打席当たりの打撃による得点貢献を表す．")
-    st.latex(
-        r"""
-        \text{wOBA} = \frac{0.7 \times \text{四死球数} + 0.9 \times (\text{単打数} + \text{敵失})
-        + 1.3 \times (\text{二塁打数} + \text{三塁打数}) + 2.0 \times \text{本塁打数}}
-        {\text{打席} + \text{犠打数}}
-        """
-    )
-
-    st.write("#### SecA")
-    st.write("Secondary Averageの略．長打力と出塁率の高さを表す．")
-    st.latex(
-        r"""
-    \text{SecA} = \frac{\text{総塁打数} - \text{安打数} + \text{四死球数} + \text{盗塁数}}{\text{打数}}
-    """
-    )
-
-    st.write("#### K%")
-    st.write("三振率")
-    st.latex(
-        r"""
-    \text{K\%} = \frac{\text{三振数}}{\text{打席数}}
-    """
-    )
-
-    st.write("#### BB%")
-    st.write("四死球率")
-    st.latex(
-        r"""
-    \text{BB\%} = \frac{\text{四死球数}}{\text{打席数}}
-    """
-    )
-
-    st.write("#### BB/K")
-    st.write("四死球数に対する三振数の割合")
-    st.latex(
-        r"""
-    \text{BB/K} = \frac{\text{四死球数}}{\text{三振数}}
-    """
-    )
-
-    st.write("#### Spd")
-    st.write("総合走力指標")
-    st.latex(
-        r"""
-    \text{Spd} = \frac{(A + B + C + D)}{4}
-    """
-    )
-    st.latex(
-        r"""
-    A = 20 \times (\frac{\text{盗塁数} + 3}{\text{盗塁数} + 7} - 0.4)
-    """
-    )
-    st.latex(
-        r"""
-    B = \frac{1}{0.07} \times \sqrt{\frac{\text{盗塁数}}{\text{単打数} + \text{四死球数}}}
-    """
-    )
-    st.latex(
-        r"""
-    C = 500 \times \frac{\text{三塁打数}}{\text{打数} - \text{本数} - \text{三振数}}
-    """
-    )
-    st.latex(
-        r"""
-    D = 25 \times (\frac{\text{得点} - \text{本数}}{\text{安打数} + \text{四死球数} - \text{本数}} - 0.1)
-    """
-    )
-
-    st.write("#### 失策率")
-    st.write("先発出場した試合あたりにする失策する確率．（本来は守備機会数あたりであるがデータがないため以下の計算で表す．）")
-    st.latex(
-        r"""
-    \text{失策率} = \frac{\text{失策数}}{\text{先発出場試合数}}
-    """
-    )
+    for key, value in batting_metrics.items():
+        st.write(f"#### {key}")
+        if value["説明"] is not None:
+            st.write(value["説明"])
+        for formula in value["数式"]:
+            st.latex(formula)
 
     st.write("### 投手")
-    st.write("#### 防御率")
-    st.latex(
-        r"""
-    \text{防御率} = \frac{7 \times \text{自責点}}{\text{投球回}}
-    """
-    )
-
-    st.write("#### K/9")
-    st.latex(
-        r"""
-    \text{K/9} = \frac{9 \times \text{奪三振数}}{\text{投球回}}
-    """
-    )
-
-    st.write("#### BB/9")
-    st.latex(
-        r"""
-    \text{BB/9} = \frac{9 \times \text{四死球数}}{\text{投球回}}
-    """
-    )
-
-    st.write("#### K/BB")
-    st.latex(
-        r"""
-    \text{K/BB} = \frac{\text{奪三振数}}{\text{四死球数}}
-    """
-    )
-
-    st.write("#### WHIP")
-    st.write("Walks plus Hits per Innings Pitchedの略．1イニングあたりに何人の出塁を許したかを表す．")
-    st.latex(
-        r"""
-    \text{WHIP} = \frac{\text{与四死球数} + \text{被安打数}}{\text{投球回}}
-    """
-    )
-
-    st.write("#### LOB%")
-    st.write("Left On Base Percentageの略．出塁させた走者の非帰還率．")
-    st.latex(
-        r"""
-    \text{LOB\%} = \frac{\text{被安打数} + \text{与四死球数} - \text{失点数}}
-    {\text{被安打数} + \text{与四死球数} - 1.4 \times \text{被本塁打数}}
-    """
-    )
+    for key, value in pitching_metrics.items():
+        st.write(f"#### {key}")
+        if value["説明"] is not None:
+            st.write(value["説明"])
+        for formula in value["数式"]:
+            st.latex(formula)
