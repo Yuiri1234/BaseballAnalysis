@@ -281,22 +281,24 @@ def calc_pitching_data(_pitching_df):
             + _pitching_df[_pitching_df["勝敗"] == "負"].shape[0]
         )
     except ZeroDivisionError:
-        win_rate = None
+        win_rate = 0
     try:
         sum_inning = _pitching_df["投球回(フル)"].sum() + _pitching_df["投球回(1/3)"].sum() / 3
         if sum_inning == 0:
-            diffence_rate = None
-            whip = None
-            k9 = None
-            bb9 = None
+            diffence_rate = 99.999
+            whip = 99.999
+            k9 = 0
+            bb9 = 99.999
+            kbb = 0
         else:
             diffence_rate = _pitching_df["自責点"].sum() / sum_inning * 7  # 7回で1試合
             whip = (_pitching_df["被安打"].sum() + _pitching_df["与四死球"].sum()) / sum_inning
             k9 = _pitching_df["奪三振"].sum() / sum_inning * 9
             bb9 = _pitching_df["与四死球"].sum() / sum_inning * 9
+            kbb = k9 / bb9
     except ZeroDivisionError:
         sum_inning = 0
-        diffence_rate = None
+        diffence_rate = 99.999
     sum_inning_str = (
         f"{_pitching_df['投球回(フル)'].sum() + _pitching_df['投球回(1/3)'].sum() // 3}回",
         f"{_pitching_df['投球回(1/3)'].sum() % 3}/3",
@@ -331,7 +333,7 @@ def calc_pitching_data(_pitching_df):
         "K/9": k9,
         "与四死球": _pitching_df["与四死球"].sum(),
         "BB/9": bb9,
-        "K/BB": k9 / bb9 if bb9 != 0 else None,
+        "K/BB": kbb,
         "ボーク": _pitching_df["ボーク"].sum(),
         "暴投": _pitching_df["暴投"].sum(),
         "WHIP": whip,
@@ -669,7 +671,6 @@ def display_groupby_player(df, func, type="batting", team=None, selected_options
             players_df,
             low_better_pitching,
             format_dict=pitching_format,
-            is_pitching=True,
         )
 
 
@@ -709,13 +710,11 @@ def display_detail_table(df, display_columns):
 
 
 def display_color_table(
-    df, low_better_list, is_pitching=False, format_dict=None, axis=0, drop=False
+    df, low_better_list, format_dict=None, axis=0, drop=False
 ):
     _df = df.copy()
     if drop:
         _df = _df.drop(["背番号", "試合数"], axis=1)
-    if is_pitching:
-        _df = _df.fillna({"勝率": 0, "防御率": 99.99})
     _df = _df.style.background_gradient(cmap=cm1, axis=axis)
     _df = _df.background_gradient(cmap=cm2, axis=axis, subset=low_better_list)
     if format_dict is not None:
@@ -1145,7 +1144,6 @@ def display_player_data(
         display_color_table(
             pitching_result,
             low_better_pitching,
-            is_pitching=True,
             format_dict=pitching_format,
             axis=0,
         )
