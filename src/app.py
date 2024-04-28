@@ -18,17 +18,16 @@ pd.set_option("display.max_colwidth", 80)
 
 
 def main():
+    st.title("分析アプリ")
+
+    st.sidebar.title("メニュー")
     team = st.sidebar.selectbox("チームを選択してください", team_dict.values())
     team = [key for key, value in team_dict.items() if value == team][0]
+    selected_type = st.sidebar.radio("表示するデータ", ["スコア", "打撃成績", "投手成績", "個人成績", "指標説明"])
 
     score_df = pd.read_csv(f"data/{team}/score.csv")
     batting_df = pd.read_csv(f"data/{team}/batting.csv")
     pitching_df = pd.read_csv(f"data/{team}/pitching.csv")
-
-    st.title("分析アプリ")
-
-    st.sidebar.title("メニュー")
-    selected_type = st.sidebar.radio("表示するデータ", ["スコア", "打撃成績", "投手成績", "個人成績", "指標説明"])
 
     if selected_type == "スコア":
         display_score_data(score_df, team, used_key_num=0)
