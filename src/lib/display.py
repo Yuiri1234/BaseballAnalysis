@@ -202,10 +202,13 @@ def calc_batting_data(_batting_df):
         seca = 0
 
     try:
-        error_rate = (
-            _batting_df["失策"].sum()
-            / _batting_df.query("出場 == '先発' and 守備 != '-' and 守備 != 'DH'").shape[0]
-        )
+        if _batting_df.query("守備 != 'DH'").shape[0] == 0:
+            error_rate = None
+        else:
+            error_rate = (
+                _batting_df["失策"].sum()
+                / _batting_df.query("出場 == '先発' and 守備 != '-' and 守備 != 'DH'").shape[0]
+            )
     except ZeroDivisionError:
         error_rate = 0
 
