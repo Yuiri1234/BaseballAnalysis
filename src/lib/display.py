@@ -75,7 +75,7 @@ def calc_win_rate(df):
     try:
         return win / (win + lose)
     except ZeroDivisionError:
-        return None
+        return 0
 
 
 def calc_score_data(_scene_df):
@@ -108,9 +108,9 @@ def calc_batting_data(_batting_df):
         slugging_percentage = total_bases / _batting_df["打数"].sum()
         average = _batting_df["安打"].sum() / _batting_df["打数"].sum()
     except ZeroDivisionError:
-        on_base_percentage = None
-        slugging_percentage = None
-        average = None
+        on_base_percentage = 0
+        slugging_percentage = 0
+        average = 0
 
     bb_k = (
         _batting_df["四死球"].sum() / _batting_df["三振"].sum()
