@@ -382,6 +382,7 @@ def display_filter_options(df, used_key_num=0):
             term_1, term_2 = None, None
     with col6:
         unique_oppo_teams = df["oppo_team"].unique()
+        unique_oppo_teams = sorted(unique_oppo_teams)
         options = ["すべて"] + list(unique_oppo_teams)
         oppo_team = st.selectbox("対戦相手", options, index=0)
     with col7:
