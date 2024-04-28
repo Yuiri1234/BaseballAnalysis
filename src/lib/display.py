@@ -16,6 +16,7 @@ from lib.calculate import (
 )
 from lib.info import (
     batting_format,
+    batting_metrics,
     column_name,
     display_batting_columns,
     display_pitching_columns,
@@ -24,6 +25,7 @@ from lib.info import (
     low_better_pitching,
     low_better_score,
     pitching_format,
+    pitching_metrics,
     position_list,
     score_format,
     team_dict,
@@ -1141,179 +1143,17 @@ def display_player_data(
 def display_sabermetrics():
     st.write("## セイバーメトリクス")
     st.write("### 打撃")
-    st.write("#### 打率")
-    st.latex(
-        r"""
-    \text{打率} = \frac{\text{安打数}}{\text{打数}}
-    """
-    )
-
-    st.write("#### 出塁率")
-    st.latex(
-        r"""
-    \text{出塁率} = \frac{\text{安打数} + \text{四死球数}}{\text{打数} + \text{四死球数} + \text{犠飛数}}
-    """
-    )
-
-    st.write("#### 長打率")
-    st.latex(
-        r"""
-    \text{長打率} = \frac{\text{塁打数}}{\text{打数}}
-    """
-    )
-
-    st.write("#### OPS")
-    st.latex(
-        r"""
-    \text{OPS} = \text{出塁率} + \text{長打率}
-    """
-    )
-
-    st.write("#### IsoP")
-    st.write("純長打率")
-    st.latex(
-        r"""
-    \text{IsoP} = \text{長打率} - \text{打率}
-    """
-    )
-
-    st.write("#### IsoD")
-    st.write("Isolated Disciplineの略．選球眼（四死球によってどれだけ出塁したか）を表す．")
-    st.latex(
-        r"""
-    \text{IsoD} = \text{出塁率} - \text{打率}
-    """
-    )
-
-    st.write("#### BABIP")
-    st.write("本塁打を除くインプレー打球のうち安打となった割合を表す．")
-    st.latex(
-        r"""
-        \text{BABIP} = \frac{\text{安打数} - \text{本塁打数}}
-                        {\text{打数} - \text{三振数} - \text{本塁打数} + \text{犠飛数}}
-        """
-    )
-
-    st.write("#### wOBA")
-    st.write("Weighted On-Base Averageの略．１打席当たりの打撃による得点貢献を表す．")
-    st.latex(
-        r"""
-        \text{wOBA} = \frac{0.7 \times \text{四死球数} + 0.9 \times (\text{単打数} + \text{敵失})
-        + 1.3 \times (\text{二塁打数} + \text{三塁打数}) + 2.0 \times \text{本塁打数}}
-        {\text{打席} + \text{犠打数}}
-        """
-    )
-
-    st.write("#### SecA")
-    st.write("Secondary Averageの略．長打力と出塁率の高さを表す．")
-    st.latex(
-        r"""
-    \text{SecA} = \frac{\text{総塁打数} - \text{安打数} + \text{四死球数} + \text{盗塁数}}{\text{打数}}
-    """
-    )
-
-    st.write("#### K%")
-    st.write("三振率")
-    st.latex(
-        r"""
-    \text{K\%} = \frac{\text{三振数}}{\text{打席数}}
-    """
-    )
-
-    st.write("#### BB%")
-    st.write("四死球率")
-    st.latex(
-        r"""
-    \text{BB\%} = \frac{\text{四死球数}}{\text{打席数}}
-    """
-    )
-
-    st.write("#### BB/K")
-    st.write("四死球数に対する三振数の割合")
-    st.latex(
-        r"""
-    \text{BB/K} = \frac{\text{四死球数}}{\text{三振数}}
-    """
-    )
-
-    st.write("#### Spd")
-    st.write("総合走力指標")
-    st.latex(
-        r"""
-    \text{Spd} = \frac{(A + B + C + D)}{4}
-    """
-    )
-    st.latex(
-        r"""
-    A = 20 \times (\frac{\text{盗塁数} + 3}{\text{盗塁数} + 7} - 0.4)
-    """
-    )
-    st.latex(
-        r"""
-    B = \frac{1}{0.07} \times \sqrt{\frac{\text{盗塁数}}{\text{単打数} + \text{四死球数}}}
-    """
-    )
-    st.latex(
-        r"""
-    C = 500 \times \frac{\text{三塁打数}}{\text{打数} - \text{本数} - \text{三振数}}
-    """
-    )
-    st.latex(
-        r"""
-    D = 25 \times (\frac{\text{得点} - \text{本数}}{\text{安打数} + \text{四死球数} - \text{本数}} - 0.1)
-    """
-    )
-
-    st.write("#### 失策率")
-    st.write("先発出場した試合あたりにする失策する確率．（本来は守備機会数あたりであるがデータがないため以下の計算で表す．）")
-    st.latex(
-        r"""
-    \text{失策率} = \frac{\text{失策数}}{\text{先発出場試合数}}
-    """
-    )
+    for key, value in batting_metrics.items():
+        st.write(f"#### {key}")
+        if value["説明"] is not None:
+            st.write(value["説明"])
+        for formula in value["数式"]:
+            st.latex(formula)
 
     st.write("### 投手")
-    st.write("#### 防御率")
-    st.latex(
-        r"""
-    \text{防御率} = \frac{7 \times \text{自責点}}{\text{投球回}}
-    """
-    )
-
-    st.write("#### K/9")
-    st.latex(
-        r"""
-    \text{K/9} = \frac{9 \times \text{奪三振数}}{\text{投球回}}
-    """
-    )
-
-    st.write("#### BB/9")
-    st.latex(
-        r"""
-    \text{BB/9} = \frac{9 \times \text{四死球数}}{\text{投球回}}
-    """
-    )
-
-    st.write("#### K/BB")
-    st.latex(
-        r"""
-    \text{K/BB} = \frac{\text{奪三振数}}{\text{四死球数}}
-    """
-    )
-
-    st.write("#### WHIP")
-    st.write("Walks plus Hits per Innings Pitchedの略．1イニングあたりに何人の出塁を許したかを表す．")
-    st.latex(
-        r"""
-    \text{WHIP} = \frac{\text{与四死球数} + \text{被安打数}}{\text{投球回}}
-    """
-    )
-
-    st.write("#### LOB%")
-    st.write("Left On Base Percentageの略．出塁させた走者の非帰還率．")
-    st.latex(
-        r"""
-    \text{LOB\%} = \frac{\text{被安打数} + \text{与四死球数} - \text{失点数}}
-    {\text{被安打数} + \text{与四死球数} - 1.4 \times \text{被本塁打数}}
-    """
-    )
+    for key, value in pitching_metrics.items():
+        st.write(f"#### {key}")
+        if value["説明"] is not None:
+            st.write(value["説明"])
+        for formula in value["数式"]:
+            st.latex(formula)

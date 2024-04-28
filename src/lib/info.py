@@ -201,3 +201,185 @@ position_list = [
     "右",
     "DH",
 ]
+
+batting_metrics = {
+    "打率": {
+        "説明": None,
+        "数式": [
+            r"""
+        \text{打率} = \frac{\text{安打数}}{\text{打数}}
+        """
+        ],
+    },
+    "出塁率": {
+        "説明": None,
+        "数式": [
+            r"""
+        \text{出塁率} = \frac{\text{安打数} + \text{四死球数}}{\text{打数} + \text{四死球数} + \text{犠飛数}}
+        """
+        ],
+    },
+    "長打率": {
+        "説明": None,
+        "数式": [
+            r"""
+        \text{長打率} = \frac{\text{塁打数}}{\text{打数}}
+        """
+        ],
+    },
+    "OPS": {
+        "説明": None,
+        "数式": [
+            r"""
+        \text{OPS} = \text{出塁率} + \text{長打率}
+        """
+        ],
+    },
+    "IsoP": {
+        "説明": "純長打率",
+        "数式": [
+            r"""
+        \text{IsoP} = \text{長打率} - \text{打率}
+        """
+        ],
+    },
+    "IsoD": {
+        "説明": "Isolated Disciplineの略．選球眼（四死球によってどれだけ出塁したか）を表す．",
+        "数式": [
+            r"""
+        \text{IsoD} = \text{出塁率} - \text{打率}
+        """
+        ],
+    },
+    "BABIP": {
+        "説明": "本塁打を除くインプレー打球のうち安打となった割合を表す．",
+        "数式": [
+            r"""
+        \text{BABIP} = \frac{\text{安打数} - \text{本塁打数}}
+                        {\text{打数} - \text{三振数} - \text{本塁打数} + \text{犠飛数}}
+        """
+        ],
+    },
+    "wOBA": {
+        "説明": "Weighted On-Base Averageの略．１打席当たりの打撃による得点貢献を表す．",
+        "数式": [
+            r"""
+        \text{wOBA} = \frac{0.7 \times \text{四死球数} + 0.9 \times (\text{単打数} + \text{敵失})
+        + 1.3 \times (\text{二塁打数} + \text{三塁打数}) + 2.0 \times \text{本塁打数}}
+        {\text{打席} + \text{犠打数}}
+        """
+        ],
+    },
+    "SecA": {
+        "説明": "Secondary Averageの略．長打力と出塁率の高さを表す．",
+        "数式": [
+            r"""
+        \text{SecA} = \frac{\text{総塁打数} - \text{安打数} + \text{四死球数} + \text{盗塁数}}{\text{打数}}
+        """
+        ],
+    },
+    "K%": {
+        "説明": "三振率",
+        "数式": [
+            r"""
+        \text{K\%} = \frac{\text{三振数}}{\text{打席数}}
+        """
+        ],
+    },
+    "BB%": {
+        "説明": "四死球率",
+        "数式": [
+            r"""
+        \text{BB\%} = \frac{\text{四死球数}}{\text{打席数}}
+        """
+        ],
+    },
+    "BB/K": {
+        "説明": "四死球数に対する三振数の割合",
+        "数式": [
+            r"""
+        \text{BB/K} = \frac{\text{四死球数}}{\text{三振数}}
+        """
+        ],
+    },
+    "Spd": {
+        "説明": "総合走力指標",
+        "数式": [
+            r"""
+        \text{Spd} = \frac{(A + B + C + D)}{4}
+        """,
+            r"""
+        A = 20 \times (\frac{\text{盗塁数} + 3}{\text{盗塁数} + 7} - 0.4)
+        """,
+            r"""
+        B = \frac{1}{0.07} \times \sqrt{\frac{\text{盗塁数}}{\text{単打数} + \text{四死球数}}}
+        """,
+            r"""
+        C = 500 \times \frac{\text{三塁打数}}{\text{打数} - \text{本数} - \text{三振数}}
+        """,
+            r"""
+        D = 25 \times (\frac{\text{得点} - \text{本数}}{\text{安打数} + \text{四死球数} - \text{本数}} - 0.1)
+        """,
+        ],
+    },
+    "失策率": {
+        "説明": "先発出場した試合あたりにする失策する確率．（本来は守備機会数あたりであるがデータがないため以下の計算で表す．）",
+        "数式": [
+            r"""
+        \text{失策率} = \frac{\text{失策数}}{\text{先発出場試合数}}
+        """
+        ],
+    },
+}
+
+pitching_metrics = {
+    "防御率": {
+        "説明": None,
+        "数式": [
+            r"""
+        \text{防御率} = \frac{7 \times \text{自責点}}{\text{投球回}}
+        """
+        ],
+    },
+    "K/9": {
+        "説明": "奪三振率",
+        "数式": [
+            r"""
+        \text{K/9} = \frac{9 \times \text{奪三振数}}{\text{投球回}}
+        """
+        ],
+    },
+    "BB/9": {
+        "説明": "与四死球率",
+        "数式": [
+            r"""
+        \text{BB/9} = \frac{9 \times \text{四死球数}}{\text{投球回}}
+        """
+        ],
+    },
+    "K/BB": {
+        "説明": "与四死球数に対する奪三振数の割合",
+        "数式": [
+            r"""
+        \text{K/BB} = \frac{\text{奪三振数}}{\text{四死球数}}
+        """
+        ],
+    },
+    "WHIP": {
+        "説明": "Walks plus Hits per Innings Pitchedの略．1イニングあたりに何人の出塁を許したかを表す．",
+        "数式": [
+            r"""
+        \text{WHIP} = \frac{\text{与四死球数} + \text{被安打数}}{\text{投球回}}
+        """
+        ],
+    },
+    "LOB%": {
+        "説明": "Left On Base Percentageの略．出塁させた走者の非帰還率．",
+        "数式": [
+            r"""
+        \text{LOB\%} = \frac{\text{被安打数} + \text{与四死球数} - \text{失点数}}
+        {\text{被安打数} + \text{与四死球数} - 1.4 \times \text{被本塁打数}}
+        """
+        ],
+    },
+}
