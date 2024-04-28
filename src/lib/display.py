@@ -452,7 +452,7 @@ def display_filter_batting_all(df):
         unique_positions = sorted(unique_positions, key=sort_key)
         options = ["すべて"] + [pos for pos in unique_positions]
         position = st.selectbox("守備", options, index=0)
-    return regulation, order, position, unique_order, unique_positions
+    return regulation, order, position
 
 
 def display_filter_batting(df):
@@ -469,7 +469,7 @@ def display_filter_batting(df):
         unique_positions = sorted(unique_positions, key=sort_key)
         options = ["すべて"] + [pos for pos in unique_positions]
         position = st.selectbox("守備", options, index=0)
-    return order, position, unique_order, unique_positions
+    return order, position
 
 
 def sort_key(item):
@@ -758,7 +758,6 @@ def display_score_data(score_df, team, used_key_num):
     # フィルタリング
     selected_options = display_filter_options(score_df, used_key_num)
 
-    # チーム成績
     # フィルタ後
     _score_df = filtering_df(
         score_df,
@@ -780,15 +779,7 @@ def display_score_data(score_df, team, used_key_num):
     filtered_score_results = pd.DataFrame(filtered_score_results)
     filtered_score_results.index = ["フィルタ後"]
 
-    # 期間別
-    unique_years = pd.to_datetime(score_df["game_date"]).dt.year.unique()
-    unique_months = np.sort(pd.to_datetime(score_df["game_date"]).dt.month.unique())
-    score_results = display_conditional_data(
-        score_df, calc_score_data, "term", team, unique_years, unique_months
-    )
-
     # イニング別
-    # フィルタ後
     filtered_inning_score = [
         calc_inning_points_mean(_score_df),
         calc_inning_losts_mean(_score_df),
@@ -807,14 +798,21 @@ def display_score_data(score_df, team, used_key_num):
         "平均失点(負)",
     ]
 
+    # 期間別
+    unique_years = pd.to_datetime(_score_df["game_date"]).dt.year.unique()
+    unique_months = np.sort(pd.to_datetime(_score_df["game_date"]).dt.month.unique())
+    score_results = display_conditional_data(
+        _score_df, calc_score_data, "term", team, unique_years, unique_months
+    )
+
     # 期間別得点
     inning_point = display_conditional_data(
-        score_df, calc_inning_points_mean, "term", team, unique_years, unique_months
+        _score_df, calc_inning_points_mean, "term", team, unique_years, unique_months
     )
 
     # 期間別失点
     inning_losts = display_conditional_data(
-        score_df, calc_inning_losts_mean, "term", team, unique_years, unique_months
+        _score_df, calc_inning_losts_mean, "term", team, unique_years, unique_months
     )
 
     # 表示
@@ -883,8 +881,6 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
         regulation,
         order,
         position,
-        unique_order,
-        unique_position,
     ) = display_filter_batting_all(batting_df)
     selected_options["regulation"] = regulation
     selected_options["order"] = order
@@ -897,57 +893,95 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
 
     # チーム成績
     st.write("### チーム成績")
-    # 期間別
-    unique_years = pd.to_datetime(batting_df["game_date"]).dt.year.unique()
-    unique_months = np.sort(pd.to_datetime(batting_df["game_date"]).dt.month.unique())
-    batting_result = display_conditional_data(
-        batting_df, calc_batting_data, "term", team, unique_years, unique_months
+
+    _batting_df = filtering_df(
+        batting_df,
+        team,
+        selected_options["game_type"],
+        selected_options["attack_type"],
+        selected_options["result_type"],
+        selected_options["point_diff"],
+        selected_options["term"],
+        selected_options["oppo_team"],
+        selected_options["game_place"],
+        selected_options["point_diff_num"],
+        selected_options["term_1"],
+        selected_options["term_2"],
+        selected_options["order"],
+        selected_options["position"],
     )
 
+    # 期間別
     st.write("#### 期間別")
-    display_color_table(
-        batting_result,
-        low_better_batting,
-        format_dict=batting_format,
-        axis=0,
-        drop=True,
-    )
+    try:
+        unique_years = pd.to_datetime(_batting_df["game_date"]).dt.year.unique()
+        unique_months = np.sort(
+            pd.to_datetime(_batting_df["game_date"]).dt.month.unique()
+        )
+        batting_result = display_conditional_data(
+            _batting_df, calc_batting_data, "term", team, unique_years, unique_months
+        )
+        display_color_table(
+            batting_result,
+            low_better_batting,
+            format_dict=batting_format,
+            axis=0,
+            drop=True,
+        )
+    except IndexError:
+        st.write("##### この条件に合う成績はありません")
 
     # 打順別
-    batting_result_order = display_conditional_data(
-        batting_df, calc_batting_data, "order", team, unique_order=range(1, 10)
-    )
-    batting_result_order = batting_result_order.drop(["勝ち", "負け", "引き分け", "勝率"], axis=1)
-
     st.write("#### 打順別")
-    display_color_table(
-        batting_result_order,
-        low_better_batting,
-        format_dict=batting_format,
-        axis=0,
-        drop=True,
-    )
+    try:
+        unique_order = list(_batting_df["打順"].unique())
+        unique_order = [int(i) for i in unique_order if i not in ["-"]]
+        unique_order = np.sort(unique_order)
+        batting_result_order = display_conditional_data(
+            _batting_df, calc_batting_data, "order", team, unique_order=unique_order
+        )
+        batting_result_order = batting_result_order.drop(
+            ["勝ち", "負け", "引き分け", "勝率"], axis=1
+        )
+        display_color_table(
+            batting_result_order,
+            low_better_batting,
+            format_dict=batting_format,
+            axis=0,
+            drop=True,
+        )
+    except IndexError:
+        st.write("##### この条件に合う成績はありません")
+    except KeyError:
+        st.write("##### この条件に合う成績はありません")
 
     # 守備別
-    batting_result_position = display_conditional_data(
-        batting_df,
-        calc_batting_data,
-        "position",
-        team,
-        unique_positions=unique_position,
-    )
-    batting_result_position = batting_result_position.drop(
-        ["勝ち", "負け", "引き分け", "勝率"], axis=1
-    )
-
     st.write("#### 先発守備位置別")
-    display_color_table(
-        batting_result_position,
-        low_better_batting,
-        format_dict=batting_format,
-        axis=0,
-        drop=True,
-    )
+    try:
+        unique_positions = list(_batting_df["守備"].unique())
+        unique_positions = [pos for pos in unique_positions if pos not in ["-"]]
+        unique_positions = sorted(unique_positions, key=sort_key)
+        batting_result_position = display_conditional_data(
+            _batting_df,
+            calc_batting_data,
+            "position",
+            team,
+            unique_positions=unique_positions,
+        )
+        batting_result_position = batting_result_position.drop(
+            ["勝ち", "負け", "引き分け", "勝率"], axis=1
+        )
+        display_color_table(
+            batting_result_position,
+            low_better_batting,
+            format_dict=batting_format,
+            axis=0,
+            drop=True,
+        )
+    except IndexError:
+        st.write("##### この条件に合う成績はありません")
+    except KeyError:
+        st.write("##### この条件に合う成績はありません")
 
 
 def display_pitching_data(score_df, pitching_df, team, used_key_num):
@@ -984,20 +1018,41 @@ def display_pitching_data(score_df, pitching_df, team, used_key_num):
 
     # チーム成績
     st.write("### チーム成績")
+
+    _pitching_df = filtering_df(
+        pitching_df,
+        team,
+        selected_options["game_type"],
+        selected_options["attack_type"],
+        selected_options["result_type"],
+        selected_options["point_diff"],
+        selected_options["term"],
+        selected_options["oppo_team"],
+        selected_options["game_place"],
+        selected_options["point_diff_num"],
+        selected_options["term_1"],
+        selected_options["term_2"],
+    )
+
     # 期間別
-    unique_years = pd.to_datetime(pitching_df["game_date"]).dt.year.unique()
-    unique_months = np.sort(pd.to_datetime(pitching_df["game_date"]).dt.month.unique())
-    pitching_result = display_conditional_data(
-        pitching_df, calc_pitching_data, "term", team, unique_years, unique_months
-    )
     st.write("#### 期間別")
-    display_color_table(
-        pitching_result,
-        low_better_pitching,
-        format_dict=pitching_format,
-        axis=0,
-        drop=True,
-    )
+    try:
+        unique_years = pd.to_datetime(_pitching_df["game_date"]).dt.year.unique()
+        unique_months = np.sort(
+            pd.to_datetime(_pitching_df["game_date"]).dt.month.unique()
+        )
+        pitching_result = display_conditional_data(
+            _pitching_df, calc_pitching_data, "term", team, unique_years, unique_months
+        )
+        display_color_table(
+            pitching_result,
+            low_better_pitching,
+            format_dict=pitching_format,
+            axis=0,
+            drop=True,
+        )
+    except IndexError:
+        st.write("##### この条件に合う成績はありません")
 
 
 def display_player_data(
@@ -1033,10 +1088,8 @@ def display_player_data(
     # 打撃成績
     # フィルタリング
     selected_options = display_filter_options(batting_df, used_key_num)
-    order, position, unique_order, unique_position = display_filter_batting(batting_df)
+    order, position = display_filter_batting(batting_df)
 
-    unique_years = pd.to_datetime(batting_df["game_date"]).dt.year.unique()
-    unique_months = np.sort(pd.to_datetime(batting_df["game_date"]).dt.month.unique())
     _batting_df = filtering_df(
         batting_df,
         team,
@@ -1067,46 +1120,67 @@ def display_player_data(
         filtered_batting_result = pd.DataFrame(
             index=["フィルタ後"], columns=display_batting_columns
         )
-        st.write("#### この条件に合う成績はありません")
+        st.write("##### この条件に合う成績はありません")
 
     # 期間別
-    batting_result = display_conditional_data(
-        batting_df, calc_batting_data, "term", team, unique_years, unique_months
-    )
-
     st.write("#### 期間別")
-    display_color_table(
-        batting_result, low_better_batting, format_dict=batting_format, axis=0
-    )
+    try:
+        unique_years = pd.to_datetime(_batting_df["game_date"]).dt.year.unique()
+        unique_months = np.sort(
+            pd.to_datetime(_batting_df["game_date"]).dt.month.unique()
+        )
+        batting_result = display_conditional_data(
+            _batting_df, calc_batting_data, "term", team, unique_years, unique_months
+        )
+        display_color_table(
+            batting_result, low_better_batting, format_dict=batting_format, axis=0
+        )
+    except IndexError:
+        st.write("##### この条件に合う成績はありません")
 
     # 打順別
-    batting_result_order = display_conditional_data(
-        batting_df, calc_batting_data, "order", team, unique_order=unique_order
-    )
-
     st.write("#### 打順別")
-    display_color_table(
-        batting_result_order, low_better_batting, format_dict=batting_format, axis=0
-    )
+    try:
+        unique_order = list(_batting_df["打順"].unique())
+        unique_order = [int(i) for i in unique_order if i not in ["-"]]
+        unique_order = np.sort(unique_order)
+        batting_result_order = display_conditional_data(
+            _batting_df, calc_batting_data, "order", team, unique_order=unique_order
+        )
+        display_color_table(
+            batting_result_order, low_better_batting, format_dict=batting_format, axis=0
+        )
+    except IndexError:
+        st.write("##### この条件に合う成績はありません")
+    except KeyError:
+        st.write("##### この条件に合う成績はありません")
 
     # 守備別
-    batting_result_position = display_conditional_data(
-        batting_df,
-        calc_batting_data,
-        "position",
-        team,
-        unique_positions=unique_position,
-    )
-
     st.write("#### 先発守備位置別")
-    display_color_table(
-        batting_result_position, low_better_batting, format_dict=batting_format, axis=0
-    )
+    try:
+        unique_positions = list(_batting_df["守備"].unique())
+        unique_positions = [pos for pos in unique_positions if pos not in ["-"]]
+        unique_positions = sorted(unique_positions, key=sort_key)
+        batting_result_position = display_conditional_data(
+            _batting_df,
+            calc_batting_data,
+            "position",
+            team,
+            unique_positions=unique_positions,
+        )
+        display_color_table(
+            batting_result_position,
+            low_better_batting,
+            format_dict=batting_format,
+            axis=0,
+        )
+    except IndexError:
+        st.write("##### この条件に合う成績はありません")
+    except KeyError:
+        st.write("##### この条件に合う成績はありません")
 
     # 投手成績
     st.write("### 投手成績")
-    unique_years = pd.to_datetime(pitching_df["game_date"]).dt.year.unique()
-    unique_months = np.sort(pd.to_datetime(pitching_df["game_date"]).dt.month.unique())
     _pitching_df = filtering_df(
         pitching_df,
         team,
@@ -1135,22 +1209,33 @@ def display_player_data(
         filtered_pitching_result = pd.DataFrame(
             index=["フィルタ後"], columns=display_pitching_columns
         )
-        st.write("#### この条件に合う成績はありません")
+        st.write("##### この条件に合う成績はありません")
 
     if pitching_df.shape[0] == 0:
         st.write("#### この選手は投手として登板していません")
     else:
-        pitching_result = display_conditional_data(
-            pitching_df, calc_pitching_data, "term", team, unique_years, unique_months
-        )
-
         st.write("#### 期間別")
-        display_color_table(
-            pitching_result,
-            low_better_pitching,
-            format_dict=pitching_format,
-            axis=0,
-        )
+        try:
+            unique_years = pd.to_datetime(_pitching_df["game_date"]).dt.year.unique()
+            unique_months = np.sort(
+                pd.to_datetime(_pitching_df["game_date"]).dt.month.unique()
+            )
+            pitching_result = display_conditional_data(
+                _pitching_df,
+                calc_pitching_data,
+                "term",
+                team,
+                unique_years,
+                unique_months,
+            )
+            display_color_table(
+                pitching_result,
+                low_better_pitching,
+                format_dict=pitching_format,
+                axis=0,
+            )
+        except IndexError:
+            st.write("##### この条件に合う成績はありません")
 
 
 def display_sabermetrics():
