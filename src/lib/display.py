@@ -941,7 +941,7 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
         unique_order = [int(i) for i in unique_order if i not in ["-"]]
         unique_order = np.sort(unique_order)
         batting_result_order = display_conditional_data(
-            _batting_df, calc_batting_data, "order", team, unique_order=unique_order
+            _batting_df, calc_batting_data, "order", team, unique_order=range(1, 10)
         )
         batting_result_order = batting_result_order.drop(
             ["勝ち", "負け", "引き分け", "勝率"], axis=1
