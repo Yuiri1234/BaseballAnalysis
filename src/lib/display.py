@@ -781,6 +781,20 @@ def display_score_data(score_df, team, used_key_num):
     ]
     filtered_score_results = pd.DataFrame(filtered_score_results)
     filtered_score_results.index = ["フィルタ後"]
+    st.write("### 試合結果")
+    display_detail_table(_score_df, display_score_columns)
+    st.dataframe(filtered_score_results)
+
+    # 期間別
+    unique_years = pd.to_datetime(_score_df["game_date"]).dt.year.unique()
+    unique_months = np.sort(pd.to_datetime(_score_df["game_date"]).dt.month.unique())
+    score_results = display_conditional_data(
+        _score_df, calc_score_data, "term", team, unique_years, unique_months
+    )
+    st.write("#### 期間別")
+    display_color_table(
+        score_results, low_better_score, format_dict=score_format, axis=0
+    )
 
     # イニング別
     filtered_inning_score = [
@@ -800,30 +814,7 @@ def display_score_data(score_df, team, used_key_num):
         "平均得点(負)",
         "平均失点(負)",
     ]
-
-    # 期間別
-    unique_years = pd.to_datetime(_score_df["game_date"]).dt.year.unique()
-    unique_months = np.sort(pd.to_datetime(_score_df["game_date"]).dt.month.unique())
-    score_results = display_conditional_data(
-        _score_df, calc_score_data, "term", team, unique_years, unique_months
-    )
-
-    # 期間別得点
-    inning_point = display_conditional_data(
-        _score_df, calc_inning_points_mean, "term", team, unique_years, unique_months
-    )
-
-    # 期間別失点
-    inning_losts = display_conditional_data(
-        _score_df, calc_inning_losts_mean, "term", team, unique_years, unique_months
-    )
-
-    # 表示
-    st.write("### 試合結果")
-    display_detail_table(_score_df, display_score_columns)
-    st.dataframe(filtered_score_results)
-
-    st.write("#### イニング別成績")
+    st.write("### イニング別成績")
     filtered_inning_score = filtered_inning_score.T
     display_color_table(
         filtered_inning_score,
@@ -832,13 +823,11 @@ def display_score_data(score_df, team, used_key_num):
         axis=0,
     )
 
-    st.write("### 期間別")
-    display_color_table(
-        score_results, low_better_score, format_dict=score_format, axis=0
+    # 期間別得点
+    inning_point = display_conditional_data(
+        _score_df, calc_inning_points_mean, "term", team, unique_years, unique_months
     )
-
-    st.write("#### イニング別成績")
-    st.write("##### 得点")
+    st.write("#### 得点")
     display_color_table(
         inning_point,
         low_better_list=None,
@@ -846,7 +835,11 @@ def display_score_data(score_df, team, used_key_num):
         axis=1,
     )
 
-    st.write("##### 失点")
+    # 期間別失点
+    inning_losts = display_conditional_data(
+        _score_df, calc_inning_losts_mean, "term", team, unique_years, unique_months
+    )
+    st.write("#### 失点")
     display_color_table(
         inning_losts,
         low_better_list="all",
