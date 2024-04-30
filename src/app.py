@@ -1,5 +1,11 @@
 import pandas as pd
 import streamlit as st
+from lib.calculate import (
+    calc_points_diff,
+    get_opponent_team,
+    get_teams_url,
+    win_or_lose,
+)
 
 # from streamlit_gsheets import GSheetsConnection
 from lib.display import (
@@ -30,6 +36,18 @@ def main():
     score_df = pd.read_csv(f"data/{team}/score.csv")
     batting_df = pd.read_csv(f"data/{team}/batting.csv")
     pitching_df = pd.read_csv(f"data/{team}/pitching.csv")
+
+    score_df["game_url"] = score_df["game"].apply(get_teams_url, team=team)
+    score_df["oppo_team"] = score_df.apply(
+        lambda row: get_opponent_team(row, team_dict[team]), axis=1
+    )
+    score_df["game_date"] = pd.to_datetime(score_df["game_date"])
+    score_df["result"] = score_df.apply(
+        lambda row: win_or_lose(row, team_dict[team]), axis=1
+    )
+    score_df["points_diff"] = score_df.apply(
+        lambda row: calc_points_diff(row, team_dict[team]), axis=1
+    )
 
     if selected_type == "スコア":
         display_score_data(score_df, team, used_key_num=0)
