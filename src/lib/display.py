@@ -917,6 +917,9 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
         batting_result = display_conditional_data(
             _batting_df, calc_batting_data, "term", team, unique_years, unique_months
         )
+        batting_result = batting_result.drop(
+            ["勝ち", "負け", "引き分け", "勝率"], axis=1
+        )
         display_color_table(
             batting_result,
             low_better_batting,
