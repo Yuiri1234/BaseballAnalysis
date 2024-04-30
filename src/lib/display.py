@@ -733,21 +733,10 @@ def display_score_data(score_df, team, used_key_num):
     st.write("## スコアデータ")
 
     # 計算
-    score_df["game_url"] = score_df["game"].apply(get_teams_url, team=team)
-    score_df["oppo_team"] = score_df.apply(
-        lambda row: get_opponent_team(row, team_dict[team]), axis=1
-    )
-    score_df["game_date"] = pd.to_datetime(score_df["game_date"])
     score_df[["points", "losts"]] = score_df.apply(
         lambda row: calc_points_losts(row, team_dict[team]),
         axis=1,
         result_type="expand",
-    )
-    score_df["points_diff"] = score_df.apply(
-        lambda row: calc_points_diff(row, team_dict[team]), axis=1
-    )
-    score_df["result"] = score_df.apply(
-        lambda row: win_or_lose(row, team_dict[team]), axis=1
     )
     score_df[[f"{i}_points" for i in range(1, 10)]] = score_df.apply(
         lambda row: calc_inning_points(row, team_dict[team]),
@@ -827,7 +816,7 @@ def display_score_data(score_df, team, used_key_num):
     inning_point = display_conditional_data(
         _score_df, calc_inning_points_mean, "term", team, unique_years, unique_months
     )
-    st.write("#### 得点")
+    st.write("#### 得点（期間別）")
     display_color_table(
         inning_point,
         low_better_list=None,
@@ -839,7 +828,7 @@ def display_score_data(score_df, team, used_key_num):
     inning_losts = display_conditional_data(
         _score_df, calc_inning_losts_mean, "term", team, unique_years, unique_months
     )
-    st.write("#### 失点")
+    st.write("#### 失点（期間別）")
     display_color_table(
         inning_losts,
         low_better_list="all",
@@ -850,18 +839,6 @@ def display_score_data(score_df, team, used_key_num):
 
 def display_batting_data(score_df, batting_df, team, used_key_num):
     # 計算
-    score_df["game_url"] = score_df["game"].apply(get_teams_url, team=team)
-    score_df["oppo_team"] = score_df.apply(
-        lambda row: get_opponent_team(row, team_dict[team]), axis=1
-    )
-    score_df["game_date"] = pd.to_datetime(score_df["game_date"])
-    score_df["result"] = score_df.apply(
-        lambda row: win_or_lose(row, team_dict[team]), axis=1
-    )
-    score_df["points_diff"] = score_df.apply(
-        lambda row: calc_points_diff(row, team_dict[team]), axis=1
-    )
-
     batting_df["game_date"] = pd.to_datetime(batting_df["game_date"])
 
     batting_df = pd.merge(
@@ -917,9 +894,7 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
         batting_result = display_conditional_data(
             _batting_df, calc_batting_data, "term", team, unique_years, unique_months
         )
-        batting_result = batting_result.drop(
-            ["勝ち", "負け", "引き分け", "勝率"], axis=1
-        )
+        batting_result = batting_result.drop(["勝ち", "負け", "引き分け", "勝率"], axis=1)
         display_color_table(
             batting_result,
             low_better_batting,
@@ -986,18 +961,6 @@ def display_batting_data(score_df, batting_df, team, used_key_num):
 
 def display_pitching_data(score_df, pitching_df, team, used_key_num):
     # 計算
-    score_df["game_url"] = score_df["game"].apply(get_teams_url, team=team)
-    score_df["oppo_team"] = score_df.apply(
-        lambda row: get_opponent_team(row, team_dict[team]), axis=1
-    )
-    score_df["game_date"] = pd.to_datetime(score_df["game_date"])
-    score_df["result"] = score_df.apply(
-        lambda row: win_or_lose(row, team_dict[team]), axis=1
-    )
-    score_df["points_diff"] = score_df.apply(
-        lambda row: calc_points_diff(row, team_dict[team]), axis=1
-    )
-
     pitching_df["game_date"] = pd.to_datetime(pitching_df["game_date"])
 
     pitching_df = pd.merge(
