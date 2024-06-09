@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# リポジトリのディレクトリに移動
+# リポジトリのディレクトリに移動 
 cd /home/user/Documents/myproject/BaseballAnalysis
 
 # Git pullを実行
